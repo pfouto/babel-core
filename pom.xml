@@ -24,6 +24,13 @@
         </plugins>
     </build>
 
+    <distributionManagement>
+        <repository>
+            <id>asd19</id>
+            <url>file:///Users/jleitao/mvn-repo</url>
+        </repository>
+    </distributionManagement>
+
     <dependencies>
         <dependency>
             <groupId>org.apache.logging.log4j</groupId>
