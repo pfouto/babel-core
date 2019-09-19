@@ -241,8 +241,8 @@ public class Babel {
     }
 
     /**
-     * Returns the instance of the network service
-     * @return the network service instance
+     * Returns the instance of the network layer
+     * @return the network layer instance
      * @throws Exception if no configuration was previously set
      */
     public synchronized INetwork getNetworkInstance() throws Exception {

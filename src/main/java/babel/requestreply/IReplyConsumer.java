@@ -1,16 +1,19 @@
 package babel.requestreply;
 
 /**
- * An interface of a reply event consumer
+ * An interface of a request event consumer
  *
  *
- * Implemented by:
  * @see babel.protocol.GenericProtocol
- *
- * Used in:
- * @see babel.Babel
  */
 public interface IReplyConsumer {
 
-    void deliverReply(ProtocolReply r);
+    /**
+     * Deliver the reply event to the correct protocol
+     *
+     * Can be implemented differently by applications
+     *
+     * @param reply the reply to be delivered
+     */
+    void deliverReply(ProtocolReply reply);
 }

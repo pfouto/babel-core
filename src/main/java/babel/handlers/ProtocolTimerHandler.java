@@ -18,8 +18,8 @@ public interface ProtocolTimerHandler {
     /**
      * Performs this operation on the ProtocolTimer.
      *
-     * @param t the input argument
+     * @param timer the received timer
      */
-    void uponTimer(ProtocolTimer t);
+    void uponTimer(ProtocolTimer timer);
 
 }

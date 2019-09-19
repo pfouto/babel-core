@@ -17,8 +17,8 @@ public interface ProtocolRequestHandler {
     /**
      * Performs this operation on the ProtocolMessage.
      *
-     * @param r the input argument
+     * @param request the received request
      */
-    void uponRequest(ProtocolRequest r);
+    void uponRequest(ProtocolRequest request);
 
 }

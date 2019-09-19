@@ -17,8 +17,8 @@ public interface ProtocolNotificationHandler {
     /**
      * Performs this operation on the ProtocolNotification.
      *
-     * @param n the input argument
+     * @param notification the received notification
      */
-    void uponNotification(ProtocolNotification n);
+    void uponNotification(ProtocolNotification notification);
 
 }

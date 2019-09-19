@@ -17,8 +17,8 @@ public interface ProtocolReplyHandler {
     /**
      * Performs this operation on the ProtocolMessage.
      *
-     * @param r the input argument
+     * @param reply the received reply
      */
-    void uponReply(ProtocolReply r);
+    void uponReply(ProtocolReply reply);
 
 }

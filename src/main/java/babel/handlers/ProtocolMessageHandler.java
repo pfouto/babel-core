@@ -17,8 +17,8 @@ public interface ProtocolMessageHandler {
     /**
      * Performs this operation on the ProtocolMessage.
      *
-     * @param m the input argument
+     * @param msg the received message
      */
-    void receive(ProtocolMessage m);
+    void receive(ProtocolMessage msg);
 
 }

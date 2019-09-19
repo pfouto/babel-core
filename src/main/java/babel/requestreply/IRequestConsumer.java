@@ -4,13 +4,16 @@ package babel.requestreply;
  * An interface of a request event consumer
  *
  *
- * Implemented by:
  * @see babel.protocol.GenericProtocol
- *
- * Used in:
- * @see babel.Babel
  */
 public interface IRequestConsumer {
 
-    void deliverRequest(ProtocolRequest r);
+    /**
+     * Deliver the request event to the correct protocol
+     *
+     * Can be implemented differently by applications
+     *
+     * @param request the request to be delivered
+     */
+    void deliverRequest(ProtocolRequest request);
 }
