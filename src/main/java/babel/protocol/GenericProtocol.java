@@ -7,9 +7,7 @@ import babel.exceptions.NotificationDoesNotExistException;
 import babel.handlers.*;
 import babel.requestreply.IReplyConsumer;
 import babel.requestreply.IRequestConsumer;
-import network.Host;
-import network.IMessageConsumer;
-import network.INetwork;
+import network.*;
 import babel.notification.INotificationConsumer;
 import babel.notification.ProtocolNotification;
 import babel.protocol.event.*;
@@ -17,7 +15,6 @@ import babel.requestreply.ProtocolReply;
 import babel.requestreply.ProtocolRequest;
 import babel.timer.ITimerConsumer;
 import babel.timer.ProtocolTimer;
-import network.ISerializer;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -31,7 +28,9 @@ public abstract class GenericProtocol implements IMessageConsumer, ITimerConsume
     private Thread executionThread;
     private String protoName;
     private short protoId;
-    protected final INetwork network;
+    private final INetwork network;
+
+    protected final Host myself;
 
     private Map<Short, ProtocolMessageHandler> messageHandlers;
     private Map<Short, ProtocolTimerHandler> timerHandlers;
@@ -44,7 +43,7 @@ public abstract class GenericProtocol implements IMessageConsumer, ITimerConsume
 
     private Map<Short, Set<INotificationConsumer>> subscribers;
 
-    public static final Logger logger = LogManager.getLogger(GenericProtocol.class);
+    private static final Logger logger = LogManager.getLogger(GenericProtocol.class);
 
     private static Babel babel = Babel.getInstance();
 
@@ -53,6 +52,7 @@ public abstract class GenericProtocol implements IMessageConsumer, ITimerConsume
         this.protoId = protoId;
         this.protoName = protoName;
         this.network = net;
+        this.myself = network.myHost();
         this.executionThread = new Thread(this, "Protocol " + protoId + " (" + protoName + ")");
 
         //Initialize maps for event handlers
@@ -194,6 +194,14 @@ public abstract class GenericProtocol implements IMessageConsumer, ITimerConsume
         network.sendMessage(msg.getId(), msg, destination);
     }
 
+    protected final void registerNodeListener(INodeListener l){
+        network.registerNodeListener(l);
+    }
+
+    protected final void addNetworkPeer(Host peer) {
+        network.addPeer(peer);
+    }
+
     //Interface to send requests
     protected final void sendRequest(ProtocolRequest r) throws DestinationProtocolDoesNotExist {
         r.setSender(this.getProtoId());
@@ -213,15 +221,15 @@ public abstract class GenericProtocol implements IMessageConsumer, ITimerConsume
     }
 
     //Interface to manage Timers
-    public UUID createPeriodicTimer(ProtocolTimer t, long first, long period) {
+    protected UUID createPeriodicTimer(ProtocolTimer t, long first, long period) {
         return babel.createPeriodicTimer(this, t, first, period);
     }
 
-    public UUID createTimer(ProtocolTimer t, long timeout) {
+    protected UUID createTimer(ProtocolTimer t, long timeout) {
         return babel.createTimer(this, t, timeout);
     }
 
-    public ProtocolTimer cancelTimer(UUID timerID) {
+    protected ProtocolTimer cancelTimer(UUID timerID) {
         return babel.cancelTimer(timerID);
     }
 
@@ -259,7 +267,7 @@ public abstract class GenericProtocol implements IMessageConsumer, ITimerConsume
 
     @Override
     public final void unsubscribeNotification(short notificationID, INotificationConsumer c) {
-        this.subscribers.getOrDefault(notificationID, Collections.EMPTY_SET).remove(c);
+        this.subscribers.getOrDefault(notificationID, Collections.emptySet()).remove(c);
     }
 
     @Override
@@ -274,7 +282,7 @@ public abstract class GenericProtocol implements IMessageConsumer, ITimerConsume
     public void unsubscribeNotification(String notification, INotificationConsumer c) {
         Short s = this.producedNotifications.get(notification);
         if(s != null)
-            this.subscribers.getOrDefault(s, Collections.EMPTY_SET).remove(c);
+            this.subscribers.getOrDefault(s, Collections.emptySet()).remove(c);
     }
 
     protected final void registerNotification(short id, String name) {
