@@ -202,6 +202,10 @@ public abstract class GenericProtocol implements IMessageConsumer, ITimerConsume
         network.addPeer(peer);
     }
 
+    protected final void removeNetworkPeer(Host peer) {
+        network.removePeer(peer);
+    }
+
     //Interface to send requests
     protected final void sendRequest(ProtocolRequest r) throws DestinationProtocolDoesNotExist {
         r.setSender(this.getProtoId());
