@@ -5,8 +5,8 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>pt.unl.fct.di.novasys</groupId>
-    <artifactId>protocol</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <artifactId>babel-core</artifactId>
+    <version>0.1-alpha</version>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -32,7 +32,7 @@
         </dependency>
         <dependency>
             <groupId>pt.unl.fct.di.novasys</groupId>
-            <artifactId>network</artifactId>
+            <artifactId>network-layer</artifactId>
             <version>1.0-SNAPSHOT</version>
         </dependency>
     </dependencies>
