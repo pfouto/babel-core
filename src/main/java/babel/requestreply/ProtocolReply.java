@@ -2,6 +2,14 @@ package babel.requestreply;
 
 import babel.protocol.event.ProtocolInteraction;
 
+/**
+ * An abstract class that represents a request event
+ *
+ *
+ *
+ *
+ * @see babel.protocol.GenericProtocol
+ */
 public abstract class ProtocolReply extends ProtocolInteraction {
 
     public ProtocolReply() {
