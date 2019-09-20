@@ -15,7 +15,7 @@ public interface INotificationProducer {
 
     /**
      * Returns the produced notifications
-     * in a map : NotificationName -> NotificationID
+     * in a map that has NotificationName as key and NotificationID as value.
      * @return a map with the produced notifications
      */
     Map<String, Short> producedNotifications();

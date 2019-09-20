@@ -271,18 +271,18 @@ public abstract class GenericProtocol implements IMessageConsumer, ITimerConsume
     }
 
     /**
-     *
+     * Opens a (persistent) TCP connection in the network layer to a given peer.
      * @see INetwork
-     * @param peer
+     * @param peer represents the peer to which a TCP connection will be created.
      */
     protected final void addNetworkPeer(Host peer) {
         network.addPeer(peer);
     }
 
     /**
-     *
+     * Closes the network layer TCP connection to a given peer.
      * @see INetwork
-     * @param peer
+     * @param peer represents the peer to which a TCP connection will be closed.
      */
     protected final void removeNetworkPeer(Host peer) {
         network.removePeer(peer);
@@ -468,7 +468,7 @@ public abstract class GenericProtocol implements IMessageConsumer, ITimerConsume
 
     /**
      * Returns the produced notifications of the protocol
-     * in a map : NotificationName -> NotificationID
+     * in a map that contains NotificationName as key and NotificationID as value
      * @return a map with the produced notifications
      */
     @Override
