@@ -1,6 +1,7 @@
 package babel.handlers;
 
-import babel.notification.ProtocolNotification;
+import babel.internal.NotificationEvent;
+import babel.protocol.ProtoNotification;
 
 /**
  * Represents an operation that accepts a single input argument and returns no
@@ -8,17 +9,17 @@ import babel.notification.ProtocolNotification;
  * to operate via side-effects.
  *
  * <p>This is a <a href="package-summary.html">functional interface</a>
- * whose functional method is {@link #uponNotification(ProtocolNotification)}.
+ * whose functional method is {@link #uponNotification(NotificationEvent)}.
  *
  */
 @FunctionalInterface
-public interface ProtocolNotificationHandler {
+public interface ProtoNotificationHandler {
 
     /**
      * Performs this operation on the ProtocolNotification.
      *
      * @param notification the received notification
      */
-    void uponNotification(ProtocolNotification notification);
+    void uponNotification(ProtoNotification notification, short emitter);
 
 }

@@ -1,12 +1,15 @@
-package babel.notification;
+package babel.consumers;
+
+import babel.GenericProtocol;
+import babel.internal.NotificationEvent;
 
 /**
  * An interface of a request event consumer
  *
  *
- * @see babel.protocol.GenericProtocol
+ * @see GenericProtocol
  */
-public interface INotificationConsumer {
+public interface NotificationConsumer {
 
     /**
      * Deliver the notification event to the correct protocols
@@ -15,5 +18,5 @@ public interface INotificationConsumer {
      *
      * @param notification the notification to be delivered
      */
-    void deliverNotification(ProtocolNotification notification);
+    void deliverNotification(NotificationEvent notification);
 }

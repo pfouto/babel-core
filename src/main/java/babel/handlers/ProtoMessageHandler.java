@@ -1,6 +1,8 @@
 package babel.handlers;
 
-import babel.protocol.event.ProtocolMessage;
+import babel.internal.MessageInEvent;
+import babel.protocol.ProtoMessage;
+import network.Host;
 
 /**
  * Represents an operation that accepts a single input argument and returns no
@@ -8,17 +10,17 @@ import babel.protocol.event.ProtocolMessage;
  * to operate via side-effects.
  *
  * <p>This is a <a href="package-summary.html">functional interface</a>
- * whose functional method is {@link #receive(ProtocolMessage)}.
+ * whose functional method is {@link #receive(MessageInEvent)}.
  *
  */
 @FunctionalInterface
-public interface ProtocolMessageHandler {
+public interface ProtoMessageHandler {
 
     /**
      * Performs this operation on the ProtocolMessage.
      *
      * @param msg the received message
      */
-    void receive(ProtocolMessage msg);
+    void receive(ProtoMessage msg, Host from);
 
 }

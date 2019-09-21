@@ -1,0 +1,35 @@
+
+Babel:
+    @ Remove "getProtocol"
+    @ - Protocols cannot get references to others
+    @ - Everything goes through Babel
+
+Notifications:
+    Subscribers map in Babel
+    Notifications map concurrent
+    Notification subscribe receives handler
+    Remove notification.registerhandler
+    babel.subscribe
+    babel.registernotification
+    babel.triggernotification
+
+Reply/Request:
+    @ babel.reply
+    @ babel.request
+
+Timer:
+    pass consumer on timer start
+    remove "registerTimerHandler"
+    SetupTimer receives handler as an argument
+    Can remove UUID
+    id is generated sequentially
+    babel tracks protocol id + internal timer id
+
+Packages:
+    @ Change interface structure
+
+ProtocolInteraction:
+    @ Remove "invert"
+    @ Remove sets
+    @ Make sender and destination final
+    @ Create "ProtocolRequest.createResponse()"

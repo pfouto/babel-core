@@ -1,6 +1,5 @@
 package babel.handlers;
-
-import babel.requestreply.ProtocolReply;
+import babel.protocol.ProtoRequest;
 
 /**
  * Represents an operation that accepts a single input argument and returns no
@@ -8,17 +7,17 @@ import babel.requestreply.ProtocolReply;
  * to operate via side-effects.
  *
  * <p>This is a <a href="package-summary.html">functional interface</a>
- * whose functional method is {@link #uponReply(ProtocolReply)}.
+ * whose functional method is {@link #uponRequest(RequestEvent)}.
  *
  */
 @FunctionalInterface
-public interface ProtocolReplyHandler {
+public interface ProtoRequestHandler {
 
     /**
      * Performs this operation on the ProtocolMessage.
      *
-     * @param reply the received reply
+     * @param request the received request
      */
-    void uponReply(ProtocolReply reply);
+    void uponRequest(ProtoRequest request, short from);
 
 }

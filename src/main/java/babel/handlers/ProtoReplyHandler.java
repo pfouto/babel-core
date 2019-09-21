@@ -1,7 +1,6 @@
 package babel.handlers;
 
-import babel.protocol.event.ProtocolMessage;
-import babel.timer.ProtocolTimer;
+import babel.protocol.ProtoReply;
 
 /**
  * Represents an operation that accepts a single input argument and returns no
@@ -9,17 +8,17 @@ import babel.timer.ProtocolTimer;
  * to operate via side-effects.
  *
  * <p>This is a <a href="package-summary.html">functional interface</a>
- * whose functional method is {@link #uponTimer(ProtocolTimer)}.
+ * whose functional method is {@link #uponReply(ReplyEvent)}.
  *
  */
 @FunctionalInterface
-public interface ProtocolTimerHandler {
+public interface ProtoReplyHandler {
 
     /**
-     * Performs this operation on the ProtocolTimer.
+     * Performs this operation on the ProtocolMessage.
      *
-     * @param timer the received timer
+     * @param reply the received reply
      */
-    void uponTimer(ProtocolTimer timer);
+    void uponReply(ProtoReply reply, short from);
 
 }

@@ -1,17 +1,21 @@
-package babel.timer;
+package babel.consumers;
 
+
+import babel.GenericProtocol;
+import babel.internal.TimerEvent;
+import babel.protocol.ProtoTimer;
 
 /**
  * An interface of a timer event consumer
  *
  *
  * Implemented by:
- * @see babel.protocol.GenericProtocol
+ * @see GenericProtocol
  *
  * Used in:
  * @see babel.Babel
  */
-public interface ITimerConsumer {
+public interface TimerConsumer {
 
     /**
      * Deliver the timer event to the correct protocol
@@ -20,5 +24,5 @@ public interface ITimerConsumer {
      *
      * @param timer the timer to be delivered
      */
-    void deliverTimer(ProtocolTimer timer);
+    void deliverTimer(TimerEvent t);
 }
