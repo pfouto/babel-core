@@ -345,14 +345,14 @@ public abstract class GenericProtocol implements IMessageConsumer, TimerConsumer
 
     // ------------------------------ NOTIFICATIONS ---------------------------------
 
-    final void subscribeNotification(short nId, ProtoNotificationHandler h) throws HandlerRegistrationException {
+    protected final void subscribeNotification(short nId, ProtoNotificationHandler h) throws HandlerRegistrationException {
         ProtoNotificationHandler oldHandler = notificationHandlers.putIfAbsent(nId, h);
         if (oldHandler != null)
             throw new HandlerRegistrationException("Conflict in registering handler for notification with id " + nId);
         babel.subscribeNotification(nId, this);
     }
 
-    final void unsubscribeNotification(short nId) {
+    protected final void unsubscribeNotification(short nId) {
         notificationHandlers.remove(nId);
         babel.unsubscribeNotification(nId, this);
     }
