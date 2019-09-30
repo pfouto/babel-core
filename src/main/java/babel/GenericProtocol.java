@@ -256,6 +256,10 @@ public abstract class GenericProtocol implements IMessageConsumer, TimerConsumer
         network.sendMessage(msg.getId(), msg, destination);
     }
 
+    protected final void sendMessageSideChannel(ProtoMessage msg, Host destination) {
+        network.sendMessage(msg.getId(), msg, destination, true);
+    }
+
     /**
      * Register a listener for the network layer
      *
