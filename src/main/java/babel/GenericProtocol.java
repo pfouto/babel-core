@@ -187,6 +187,7 @@ public abstract class GenericProtocol implements IMessageConsumer, TimerConsumer
     }
 
     private void handleMessage(MessageInEvent m) {
+        logger.debug("Receiving: " + m.getMsg() + " from " + m.getFrom());
         ProtoMessageHandler h = this.messageHandlers.get(m.getMsg().getId());
         if (h == null) {
             logger.warn("Discarding unexpected message (id " + m.getMsg().getId() + "): " + m);
@@ -253,10 +254,12 @@ public abstract class GenericProtocol implements IMessageConsumer, TimerConsumer
      * @param destination the host destination
      */
     protected final void sendMessage(ProtoMessage msg, Host destination) {
+        logger.debug("Sending: " + msg + " to " + destination);
         network.sendMessage(msg.getId(), msg, destination);
     }
 
     protected final void sendMessageSideChannel(ProtoMessage msg, Host destination) {
+        logger.debug("SendingSideChannel: " + msg + " to " + destination);
         network.sendMessage(msg.getId(), msg, destination, true);
     }
 

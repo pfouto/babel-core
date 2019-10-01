@@ -24,6 +24,14 @@ public class MessageInEvent extends InternalEvent {
         this.msg = msg;
     }
 
+    @Override
+    public String toString() {
+        return "MessageInEvent{" +
+                "msg=" + msg +
+                ", from=" + from +
+                '}';
+    }
+
     /**
      * Returns the IP and port of the process from which the message was sent
      * @return an object Host that contains the IP and port
