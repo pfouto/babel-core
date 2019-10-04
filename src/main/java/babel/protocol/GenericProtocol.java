@@ -258,9 +258,14 @@ public abstract class GenericProtocol implements IMessageConsumer, ITimerConsume
      * @param destination the host destination
      */
     protected final void sendMessage(ProtocolMessage msg, Host destination) {
+        logger.debug("Sending: " + msg + " to " + destination);
         network.sendMessage(msg.getId(), msg, destination);
     }
 
+    protected final void sendMessageSideChannel(ProtocolMessage msg, Host destination) {
+        logger.debug("SendingSideChannel: " + msg + " to " + destination);
+        network.sendMessage(msg.getId(), msg, destination, true);
+    }
     /**
      * Register a listener for the network layer
      * @see INodeListener
