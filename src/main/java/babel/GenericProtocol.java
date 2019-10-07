@@ -59,7 +59,7 @@ public abstract class GenericProtocol implements IMessageConsumer, TimerConsumer
         this.protoName = protoName;
         this.network = net;
         this.myself = network.myHost();
-        this.executionThread = new Thread(this, "Protocol " + protoID + " (" + protoName + ")");
+        this.executionThread = new Thread(this, protoID + " - " + protoName);
 
         //Initialize maps for event handlers
         this.messageHandlers = new HashMap<>();
