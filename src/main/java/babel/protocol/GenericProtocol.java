@@ -177,9 +177,11 @@ public abstract class GenericProtocol implements IMessageConsumer, ITimerConsume
 
     @Override
     public final void run() {
+        try {
         while(true) {
             try {
                 ProtocolEvent pe = this.queue.take();
+                logger.debug("Protocol " + protoId + ": Received event of type: " + pe.getClass().getCanonicalName());
                 switch(pe.getType()) {
                     case MESSAGE_EVENT:
                         this.handleMessage((ProtocolMessage) pe);
@@ -202,6 +204,10 @@ public abstract class GenericProtocol implements IMessageConsumer, ITimerConsume
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
+        }
+        } catch (Exception e) {
+            System.err.println("Control Thread of protocol " + protoId + " has crashed.");
+            e.printStackTrace();
         }
     }
 
