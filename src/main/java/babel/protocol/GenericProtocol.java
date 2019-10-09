@@ -377,6 +377,7 @@ public abstract class GenericProtocol implements IMessageConsumer, ITimerConsume
      */
     @Override
     public final void deliverMessage(short msgID, Object msg, Host from) {
+        logger.debug("Network delivery of message type: " + msgID + " from " + from);
         ProtocolMessage pm = (ProtocolMessage) msg;
         pm.setId(msgID);
         pm.setFrom(from);

@@ -177,7 +177,9 @@ public class Babel {
     public UUID setupPeriodicTimer(ITimerConsumer consumerProtocol, ProtocolTimer timer, long firstNotification, long period) {
         if(allTimers.containsKey(timer.getUuid()))
             return null;
-        timerQueue.add(new QueuedTimer(System.currentTimeMillis() + firstNotification, period, true, timer, consumerProtocol));
+        QueuedTimer qt = new QueuedTimer(System.currentTimeMillis() + firstNotification, period, true, timer, consumerProtocol);
+        allTimers.put(timer.getUuid(), qt);
+        timerQueue.add(qt);
         worker.interrupt();
         return timer.getUuid();
     }
@@ -192,7 +194,9 @@ public class Babel {
     public UUID setupTimer(ITimerConsumer consumerProtocol, ProtocolTimer timer, long timeout) {
         if(allTimers.containsKey(timer.getUuid()))
             return null;
-        timerQueue.add(new QueuedTimer(System.currentTimeMillis() + timeout, -1, false, timer, consumerProtocol));
+        QueuedTimer qt = new QueuedTimer(System.currentTimeMillis() + timeout, -1, false, timer, consumerProtocol);
+        allTimers.put(timer.getUuid(), qt);
+        timerQueue.add(qt);
         worker.interrupt();
         return timer.getUuid();
     }
