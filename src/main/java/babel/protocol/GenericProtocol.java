@@ -24,9 +24,9 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * An abstract class that represent a generic protocol
- *
+ * <p>
  * This class handles all interactions required by protocols
- *
+ * <p>
  * Users should extend this class to implement their protocols
  */
 public abstract class GenericProtocol implements IMessageConsumer, ITimerConsumer, INotificationConsumer, IRequestConsumer, IReplyConsumer, INotificationProducer, Runnable {
@@ -57,9 +57,10 @@ public abstract class GenericProtocol implements IMessageConsumer, ITimerConsume
     /**
      * Create a generic protocol with the provided name and numeric identifier
      * and network service
+     *
      * @param protoName name of the protocol
-     * @param protoID numeric identifier
-     * @param net network service
+     * @param protoID   numeric identifier
+     * @param net       network service
      */
     public GenericProtocol(String protoName, short protoID, INetwork net) {
         this.queue = new LinkedBlockingQueue<>();
@@ -84,6 +85,7 @@ public abstract class GenericProtocol implements IMessageConsumer, ITimerConsume
 
     /**
      * Returns the numeric identifier of the protocol
+     *
      * @return numeric identifier
      */
     public final short getProtoId() {
@@ -92,6 +94,7 @@ public abstract class GenericProtocol implements IMessageConsumer, ITimerConsume
 
     /**
      * Returns the name of the protocol
+     *
      * @return name
      */
     public final String getProtoName() {
@@ -100,6 +103,7 @@ public abstract class GenericProtocol implements IMessageConsumer, ITimerConsume
 
     /**
      * Initializes the protocol with the given properties
+     *
      * @param props properties
      */
     public abstract void init(Properties props);
@@ -114,13 +118,14 @@ public abstract class GenericProtocol implements IMessageConsumer, ITimerConsume
     /**
      * Register a message handler for the protocol to process message events
      * form the network
-     * @param id the numeric identifier of the message event
-     * @param handler the function to process message event
+     *
+     * @param id         the numeric identifier of the message event
+     * @param handler    the function to process message event
      * @param serializer the serializer to serialize messages to the network
      * @throws HandlerRegistrationException if a handler for the message id is already registered
      */
     protected final void registerMessageHandler(short id, ProtocolMessageHandler handler, ISerializer<? extends ProtocolMessage> serializer) throws HandlerRegistrationException {
-        if(this.messageHandlers.containsKey(id))
+        if (this.messageHandlers.containsKey(id))
             throw new HandlerRegistrationException("Conflict in registering handler for message with id " + id + ".");
         network.registerConsumer(id, this);
         network.registerSerializer(id, serializer);
@@ -129,48 +134,52 @@ public abstract class GenericProtocol implements IMessageConsumer, ITimerConsume
 
     /**
      * Register a timer handler for the protocol to process timer events
-     * @param id the numeric identifier of the timer event
+     *
+     * @param id      the numeric identifier of the timer event
      * @param handler the function to process timer event
      * @throws HandlerRegistrationException if a handler for the timer id is already registered
      */
     protected final void registerTimerHandler(short id, ProtocolTimerHandler handler) throws HandlerRegistrationException {
-        if(this.timerHandlers.containsKey(id))
+        if (this.timerHandlers.containsKey(id))
             throw new HandlerRegistrationException("Conflict in registering handler for timer with id " + id + ".");
         this.timerHandlers.put(id, handler);
     }
 
     /**
      * Register a request handler for the protocol to process request events
-     * @param id the numeric identifier of the request event
+     *
+     * @param id      the numeric identifier of the request event
      * @param handler the function to process request event
      * @throws HandlerRegistrationException if a handler for the request id is already registered
      */
     protected final void registerRequestHandler(short id, ProtocolRequestHandler handler) throws HandlerRegistrationException {
-        if(this.requestHandlers.containsKey(id))
+        if (this.requestHandlers.containsKey(id))
             throw new HandlerRegistrationException("Conflict in registering handler for request with id " + id + ".");
         this.requestHandlers.put(id, handler);
     }
 
     /**
      * Register a reply handler for the protocol to process reply events
-     * @param id the numeric identifier of the reply event
+     *
+     * @param id      the numeric identifier of the reply event
      * @param handler the function to process reply event
      * @throws HandlerRegistrationException if a handler for the reply id is already registered
      */
     protected final void registerReplyHandler(short id, ProtocolReplyHandler handler) throws HandlerRegistrationException {
-        if(this.replyHandlers.containsKey(id))
+        if (this.replyHandlers.containsKey(id))
             throw new HandlerRegistrationException("Conflict in registering handler for reply with id " + id + ".");
         this.replyHandlers.put(id, handler);
     }
 
     /**
      * Register a notification handler for the protocol to process notification events
-     * @param id the numeric identifier of the notification event
+     *
+     * @param id      the numeric identifier of the notification event
      * @param handler the function to process notification event
      * @throws HandlerRegistrationException if a handler for the notification id is already registered
      */
     protected final void registerNotificationHandler(short id, ProtocolNotificationHandler handler) throws HandlerRegistrationException {
-        if(this.notificationHandlers.containsKey(id))
+        if (this.notificationHandlers.containsKey(id))
             throw new HandlerRegistrationException("Conflict in registering handler for notification with id " + id + ".");
         this.notificationHandlers.put(id, handler);
     }
@@ -178,43 +187,42 @@ public abstract class GenericProtocol implements IMessageConsumer, ITimerConsume
     @Override
     public final void run() {
         try {
-        while(true) {
-            try {
-                ProtocolEvent pe = this.queue.take();
-                logger.debug("Protocol " + protoId + ": Received event of type: " + pe.getClass().getCanonicalName());
-                switch(pe.getType()) {
-                    case MESSAGE_EVENT:
-                        this.handleMessage((ProtocolMessage) pe);
-                        break;
-                    case TIMER_EVENT:
-                        this.handleTimer((ProtocolTimer) pe);
-                        break;
-                    case NOTIFICATION_EVENT:
-                        this.handleNotification((ProtocolNotification) pe);
-                        break;
-                    case REQUEST_EVENT:
-                        this.handleRequest((ProtocolRequest) pe);
-                        break;
-                    case REPLY_EVENT:
-                        this.handleReply((ProtocolReply) pe);
-                        break;
-                    default:
-                        throw new AssertionError("Unexpected event received by babel.protocol " + protoId + " (" + protoName + ")");
+            while (true) {
+                try {
+                    ProtocolEvent pe = this.queue.take();
+                    logger.debug("Protocol " + protoId + ": Received event of type: " + pe.getClass().getCanonicalName());
+                    switch (pe.getType()) {
+                        case MESSAGE_EVENT:
+                            this.handleMessage((ProtocolMessage) pe);
+                            break;
+                        case TIMER_EVENT:
+                            this.handleTimer((ProtocolTimer) pe);
+                            break;
+                        case NOTIFICATION_EVENT:
+                            this.handleNotification((ProtocolNotification) pe);
+                            break;
+                        case REQUEST_EVENT:
+                            this.handleRequest((ProtocolRequest) pe);
+                            break;
+                        case REPLY_EVENT:
+                            this.handleReply((ProtocolReply) pe);
+                            break;
+                        default:
+                            throw new AssertionError("Unexpected event received by babel.protocol " + protoId + " (" + protoName + ")");
+                    }
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
                 }
-            } catch (InterruptedException e) {
-                e.printStackTrace();
             }
-        }
         } catch (Exception e) {
-            System.err.println("Control Thread of protocol " + protoId + " has crashed.");
-            e.printStackTrace();
+            logger.error("Control Thread of protocol " + protoId + " has crashed.", e);
         }
     }
 
     private void handleMessage(ProtocolMessage m) {
         ProtocolMessageHandler h = this.messageHandlers.get(m.getId());
-        if(h == null) {
-            logger.warn("Discarding unexpected message (id " + m.getId() + "): " + m );
+        if (h == null) {
+            logger.warn("Discarding unexpected message (id " + m.getId() + "): " + m);
             return;
         }
         h.receive(m);
@@ -222,8 +230,8 @@ public abstract class GenericProtocol implements IMessageConsumer, ITimerConsume
 
     private void handleTimer(ProtocolTimer t) {
         ProtocolTimerHandler h = this.timerHandlers.get(t.getId());
-        if(h == null) {
-            logger.warn("Discarding unexpected timer (id " + t.getId() + "): " + t );
+        if (h == null) {
+            logger.warn("Discarding unexpected timer (id " + t.getId() + "): " + t);
             return;
         }
         h.uponTimer(t);
@@ -231,16 +239,16 @@ public abstract class GenericProtocol implements IMessageConsumer, ITimerConsume
 
     private void handleNotification(ProtocolNotification n) {
         ProtocolNotificationHandler h = this.notificationHandlers.get(n.getId());
-        if(h == null) {
-            logger.warn("Discarding unexpected notification (id " + n.getId() + "): " + n );
+        if (h == null) {
+            logger.warn("Discarding unexpected notification (id " + n.getId() + "): " + n);
             return;
         }
         h.uponNotification(n);
     }
 
-    private  void handleRequest(ProtocolRequest r) {
+    private void handleRequest(ProtocolRequest r) {
         ProtocolRequestHandler h = this.requestHandlers.get(r.getId());
-        if(h == null) {
+        if (h == null) {
             logger.warn("Discarding unexpected request (id " + r.getId() + "): " + r);
             return;
         }
@@ -249,7 +257,7 @@ public abstract class GenericProtocol implements IMessageConsumer, ITimerConsume
 
     private void handleReply(ProtocolReply r) {
         ProtocolReplyHandler h = this.replyHandlers.get(r.getId());
-        if(h == null) {
+        if (h == null) {
             logger.warn("Discarding unexpected reply (id " + r.getId() + "): " + r);
             return;
         }
@@ -260,7 +268,8 @@ public abstract class GenericProtocol implements IMessageConsumer, ITimerConsume
 
     /**
      * Send the provided message to the provided host destination
-     * @param msg the message
+     *
+     * @param msg         the message
      * @param destination the host destination
      */
     protected final void sendMessage(ProtocolMessage msg, Host destination) {
@@ -271,26 +280,30 @@ public abstract class GenericProtocol implements IMessageConsumer, ITimerConsume
     /**
      * Send the provided message to the provided host destination, using a dedicated,
      * temporary TCP connection.
-     * @param msg the message
+     *
+     * @param msg         the message
      * @param destination the host destination
      */
     protected final void sendMessageSideChannel(ProtocolMessage msg, Host destination) {
         logger.debug("SendingSideChannel: " + msg + " to " + destination);
         network.sendMessage(msg.getId(), msg, destination, true);
     }
+
     /**
      * Register a listener for the network layer
-     * @see INodeListener
+     *
      * @param listener the listener
+     * @see INodeListener
      */
-    protected final void registerNodeListener(INodeListener listener){
+    protected final void registerNodeListener(INodeListener listener) {
         network.registerNodeListener(listener);
     }
 
     /**
      * Opens a (persistent) TCP connection in the network layer to a given peer.
-     * @see INetwork
+     *
      * @param peer represents the peer to which a TCP connection will be created.
+     * @see INetwork
      */
     protected final void addNetworkPeer(Host peer) {
         network.addPeer(peer);
@@ -298,8 +311,9 @@ public abstract class GenericProtocol implements IMessageConsumer, ITimerConsume
 
     /**
      * Closes the network layer TCP connection to a given peer.
-     * @see INetwork
+     *
      * @param peer represents the peer to which a TCP connection will be closed.
+     * @see INetwork
      */
     protected final void removeNetworkPeer(Host peer) {
         network.removePeer(peer);
@@ -309,14 +323,15 @@ public abstract class GenericProtocol implements IMessageConsumer, ITimerConsume
 
     /**
      * Send a request to the destination protocol
+     *
      * @param request request event
      * @throws DestinationProtocolDoesNotExist if the protocol does not exists
      */
     protected final void sendRequest(ProtocolRequest request) throws DestinationProtocolDoesNotExist {
         request.setSender(this.getProtoId());
         GenericProtocol gp = babel.getProtocol(request.getDestinationID());
-        if(gp == null)
-            throw new DestinationProtocolDoesNotExist("Destination of Request invalid (proto: " + request.getDestinationID() + ")" );
+        if (gp == null)
+            throw new DestinationProtocolDoesNotExist("Destination of Request invalid (proto: " + request.getDestinationID() + ")");
         gp.deliverRequest(request);
     }
 
@@ -324,14 +339,15 @@ public abstract class GenericProtocol implements IMessageConsumer, ITimerConsume
 
     /**
      * Send a reply to the destination protocol
+     *
      * @param reply reply event
      * @throws DestinationProtocolDoesNotExist if the protocol does not exists
      */
-    protected final void sendReply(ProtocolReply reply) throws DestinationProtocolDoesNotExist  {
+    protected final void sendReply(ProtocolReply reply) throws DestinationProtocolDoesNotExist {
         reply.setSender(this.getProtoId());
         GenericProtocol gp = babel.getProtocol(reply.getDestinationID());
-        if(gp == null)
-            throw new DestinationProtocolDoesNotExist("Destination of Reply invalid (proto: " + reply.getDestinationID() + ")" );
+        if (gp == null)
+            throw new DestinationProtocolDoesNotExist("Destination of Reply invalid (proto: " + reply.getDestinationID() + ")");
         gp.deliverReply(reply);
     }
 
@@ -339,8 +355,9 @@ public abstract class GenericProtocol implements IMessageConsumer, ITimerConsume
 
     /**
      * Setups a period timer
-     * @param timer the timer event
-     * @param first timeout until first trigger
+     *
+     * @param timer  the timer event
+     * @param first  timeout until first trigger
      * @param period periodicity
      * @return unique identifier of the timer set
      */
@@ -350,7 +367,8 @@ public abstract class GenericProtocol implements IMessageConsumer, ITimerConsume
 
     /**
      * Setups a timer
-     * @param timer the timer event
+     *
+     * @param timer   the timer event
      * @param timeout timout until trigger
      * @return unique identifier of the timer set
      */
@@ -360,6 +378,7 @@ public abstract class GenericProtocol implements IMessageConsumer, ITimerConsume
 
     /**
      * Cancel the timer with the provided unique identifier
+     *
      * @param timerID timer unique identifier
      * @return the canceled timer event, or null if it wasn't set or have already been trigger and was not periodic
      */
@@ -369,11 +388,12 @@ public abstract class GenericProtocol implements IMessageConsumer, ITimerConsume
 
     /**
      * Delivers a message to the protocol
-     *
+     * <p>
      * NOTE: Message comes from the network layer
+     *
      * @param msgID numeric identifier of the message
-     * @param msg the message itself
-     * @param from the host from which the message was sent
+     * @param msg   the message itself
+     * @param from  the host from which the message was sent
      */
     @Override
     public final void deliverMessage(short msgID, Object msg, Host from) {
@@ -386,6 +406,7 @@ public abstract class GenericProtocol implements IMessageConsumer, ITimerConsume
 
     /**
      * Deliver the timer to the protocol
+     *
      * @param timer the timer to be delivered
      */
     @Override
@@ -396,6 +417,7 @@ public abstract class GenericProtocol implements IMessageConsumer, ITimerConsume
 
     /**
      * Deliver the notification to the protocol
+     *
      * @param notification the notification to be delivered
      */
     @Override
@@ -405,17 +427,23 @@ public abstract class GenericProtocol implements IMessageConsumer, ITimerConsume
 
     /**
      * Deliver the request to the protocol
+     *
      * @param request the request to be delivered
      */
     @Override
-    public void deliverRequest(ProtocolRequest request) { queue.add(request); }
+    public void deliverRequest(ProtocolRequest request) {
+        queue.add(request);
+    }
 
     /**
      * Deliver the reply to the protocol
+     *
      * @param reply the reply to be delivered
      */
     @Override
-    public void deliverReply(ProtocolReply reply) { queue.add(reply); }
+    public void deliverReply(ProtocolReply reply) {
+        queue.add(reply);
+    }
 
     /* --------------------------- Methods from INotificationProducer --------------------- */
 
@@ -423,13 +451,14 @@ public abstract class GenericProtocol implements IMessageConsumer, ITimerConsume
     /**
      * Subscribe to the notification of the protocol with the provided numeric identifier
      * to be consumed by the provided protocol
-     * @param notificationID notification numeric identifier
+     *
+     * @param notificationID   notification numeric identifier
      * @param consumerProtocol protocol to consume the notification
      * @throws NotificationDoesNotExistException if the notification is not produced
      */
     @Override
     public final void subscribeNotification(short notificationID, INotificationConsumer consumerProtocol) throws NotificationDoesNotExistException {
-        if(!this.producedNotificationsById.containsKey(notificationID))
+        if (!this.producedNotificationsById.containsKey(notificationID))
             throw new NotificationDoesNotExistException("Protocol " + this.getProtoName() + " does not produce babel.notification with id: " + notificationID);
         this.subscribers.computeIfAbsent(notificationID, k -> new HashSet<>()).add(consumerProtocol);
     }
@@ -437,7 +466,8 @@ public abstract class GenericProtocol implements IMessageConsumer, ITimerConsume
     /**
      * Unsubscribe to the notification of the protocol with the provided numeric identifier
      * that was consumed by the provided protocol
-     * @param notificationID notification numeric identifier
+     *
+     * @param notificationID   notification numeric identifier
      * @param consumerProtocol protocol that consumed the notification
      */
     @Override
@@ -448,35 +478,38 @@ public abstract class GenericProtocol implements IMessageConsumer, ITimerConsume
     /**
      * Subscribe to the notification of the protocol with the provided name
      * to be consumed by the provided protocol
-     * @param notification notification name
+     *
+     * @param notification     notification name
      * @param consumerProtocol protocol to consume the notification
      * @throws NotificationDoesNotExistException if the notification is not produced
      */
     @Override
     public void subscribeNotification(String notification, INotificationConsumer consumerProtocol) throws NotificationDoesNotExistException {
         Short s = this.producedNotifications.get(notification);
-        if(s==null)
+        if (s == null)
             throw new NotificationDoesNotExistException("Protocol " + this.getProtoName() + " does not produce babel.notification with name: " + notification);
-        this.subscribeNotification(s,consumerProtocol);
+        this.subscribeNotification(s, consumerProtocol);
     }
 
     /**
      * Unsubscribe to the notification of the protocol with the provided name
      * that was consumed by the provided protocol
-     * @param notification notification name
+     *
+     * @param notification     notification name
      * @param consumerProtocol protocol that consumed the notification
      */
     @Override
     public void unsubscribeNotification(String notification, INotificationConsumer consumerProtocol) {
         Short s = this.producedNotifications.get(notification);
-        if(s != null)
+        if (s != null)
             this.subscribers.getOrDefault(s, Collections.emptySet()).remove(consumerProtocol);
     }
 
     /**
      * Register the notification with the provided numeric identifier and name
      * to be produced by the protocol
-     * @param id numeric identifier
+     *
+     * @param id   numeric identifier
      * @param name name
      */
     protected final void registerNotification(short id, String name) {
@@ -487,6 +520,7 @@ public abstract class GenericProtocol implements IMessageConsumer, ITimerConsume
     /**
      * Returns the produced notifications of the protocol
      * in a map that contains NotificationName as key and NotificationID as value
+     *
      * @return a map with the produced notifications
      */
     @Override
@@ -496,11 +530,12 @@ public abstract class GenericProtocol implements IMessageConsumer, ITimerConsume
 
     /**
      * Deliver the notification to all interested protocol
+     *
      * @param notification the notification to be delivered
      */
     protected final void triggerNotification(ProtocolNotification notification) {
         notification.setEmitter(this.getProtoId());
-        if(this.subscribers.containsKey(notification.getId())) {
+        if (this.subscribers.containsKey(notification.getId())) {
             for (INotificationConsumer c : this.subscribers.get(notification.getId())) {
                 c.deliverNotification(notification);
             }
