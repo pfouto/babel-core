@@ -201,7 +201,9 @@ public class Babel {
      */
     long setupTimer(ProtoTimer t, TimerConsumer consumer, long timeout) {
         long id = timersCounter.incrementAndGet();
-        timerQueue.add(new TimerEvent(t, id, consumer, System.currentTimeMillis() + timeout, false, -1));
+        TimerEvent newTimer = new TimerEvent(t, id, consumer, System.currentTimeMillis() + timeout, false, -1);
+        timerQueue.add(newTimer);
+        allTimers.put(newTimer.getUuid(), newTimer);
         timersThread.interrupt();
         return id;
     }
