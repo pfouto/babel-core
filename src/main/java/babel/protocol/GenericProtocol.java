@@ -4,6 +4,7 @@ import babel.Babel;
 import babel.exceptions.DestinationProtocolDoesNotExist;
 import babel.exceptions.HandlerRegistrationException;
 import babel.exceptions.NotificationDoesNotExistException;
+import babel.exceptions.ProtocolDoesNotExist;
 import babel.handlers.*;
 import babel.requestreply.IReplyConsumer;
 import babel.requestreply.IRequestConsumer;
@@ -172,16 +173,53 @@ public abstract class GenericProtocol implements IMessageConsumer, ITimerConsume
     }
 
     /**
-     * Register a notification handler for the protocol to process notification events
+     * Register a notification handler for the protocol to process notification events.
+     * This method requires the protocol that subscribe to the notification to explicitly through the {@Link #subscribeNotification(short, INotificationConsumer) subscribeNotification} method.
      *
      * @param id      the numeric identifier of the notification event
      * @param handler the function to process notification event
      * @throws HandlerRegistrationException if a handler for the notification id is already registered
+     * @deprecated For consistency in the API and to avoid two operations, this method has been replaced by the use of {@link #registerNotificationHandler(short, short, ProtocolNotificationHandler) registerNotificationHandler} method.
      */
     protected final void registerNotificationHandler(short id, ProtocolNotificationHandler handler) throws HandlerRegistrationException {
         if (this.notificationHandlers.containsKey(id))
             throw new HandlerRegistrationException("Conflict in registering handler for notification with id " + id + ".");
         this.notificationHandlers.put(id, handler);
+    }
+
+    /**
+     * Register a notification handler for the protocol to process notification events
+     *
+     * @param protoId the numeric identifier of the protocol that issues the notification event
+     * @param id      the numeric identifier of the notification event
+     * @param handler the function to process notification event
+     * @throws HandlerRegistrationException if a handler for the notification id is already registered
+     * @throws NotificationDoesNotExistException if the notification identified by id does not exists
+     * @throws ProtocolDoesNotExist if the protocol identified by protoId does not exists
+     */
+    protected final void registerNotificationHandler(short protoId, short id, ProtocolNotificationHandler handler) throws HandlerRegistrationException, NotificationDoesNotExistException, ProtocolDoesNotExist {
+        GenericProtocol gp = babel.getProtocol(protoId);
+        if(gp == null) throw new ProtocolDoesNotExist("No protocol with id " +protoId+" was found.");
+        gp.subscribeNotification(id,this);
+        if (this.notificationHandlers.containsKey(id))
+            throw new HandlerRegistrationException("Conflict in registering handler for notification with id " + id + ".");
+        this.notificationHandlers.put(id, handler);
+    }
+
+    /**
+     * Cancels the reception of a notification event. After this call, if an notification handler had been registered for this type of notification it will not be called again.
+     * This method has no effect if it is called for an event whose handler had not been previouslys registered through a call to {@link #registerNotificationHandler(short, short, ProtocolNotificationHandler).
+     *
+     * @param protoId the numeric identifier of the protocol that issues the notification event
+     * @param id      the numeric identifier of the notification event
+     * @throws ProtocolDoesNotExist if the protocol identified by protoId does not exists
+     */
+    protected final void unregisterNotificationHandler(short protoId, short id) throws ProtocolDoesNotExist {
+        if( this.notificationHandlers.remove(new Short(id)) != null ) {
+            GenericProtocol gp = babel.getProtocol(protoId);
+            if(gp == null) throw new ProtocolDoesNotExist("No protocol with id " +protoId+" was found.");
+            gp.unsubscribeNotification(id, this);
+        }
     }
 
     @Override
@@ -455,6 +493,7 @@ public abstract class GenericProtocol implements IMessageConsumer, ITimerConsume
      * @param notificationID   notification numeric identifier
      * @param consumerProtocol protocol to consume the notification
      * @throws NotificationDoesNotExistException if the notification is not produced
+     * @deprecated This method will be removed from the API in future releases. Its use has been replaced by {@link #registerNotificationHandler(short, short, ProtocolNotificationHandler) registerNotificationHandler} method.
      */
     @Override
     public final void subscribeNotification(short notificationID, INotificationConsumer consumerProtocol) throws NotificationDoesNotExistException {
