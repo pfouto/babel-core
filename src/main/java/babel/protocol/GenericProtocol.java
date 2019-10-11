@@ -174,7 +174,7 @@ public abstract class GenericProtocol implements IMessageConsumer, ITimerConsume
 
     /**
      * Register a notification handler for the protocol to process notification events.
-     * This method requires the protocol that subscribe to the notification to explicitly through the {@Link #subscribeNotification(short, INotificationConsumer) subscribeNotification} method.
+     * This method requires the protocol that subscribe to the notification to explicitly through the {@link #subscribeNotification(short, INotificationConsumer) subscribeNotification} method.
      *
      * @param id      the numeric identifier of the notification event
      * @param handler the function to process notification event
@@ -208,7 +208,7 @@ public abstract class GenericProtocol implements IMessageConsumer, ITimerConsume
 
     /**
      * Cancels the reception of a notification event. After this call, if an notification handler had been registered for this type of notification it will not be called again.
-     * This method has no effect if it is called for an event whose handler had not been previouslys registered through a call to {@link #registerNotificationHandler(short, short, ProtocolNotificationHandler).
+     * This method has no effect if it is called for an event whose handler had not been previouslys registered through a call to {@link #registerNotificationHandler(short, short, ProtocolNotificationHandler) registerNotificationHandler} method.
      *
      * @param protoId the numeric identifier of the protocol that issues the notification event
      * @param id      the numeric identifier of the notification event
@@ -508,6 +508,7 @@ public abstract class GenericProtocol implements IMessageConsumer, ITimerConsume
      *
      * @param notificationID   notification numeric identifier
      * @param consumerProtocol protocol that consumed the notification
+     * @deprecated This method will be removed from the API in future releases. Its use has been replaced by {@link #unregisterNotificationHandler(short, short) unregisterNotificationHandler} method.
      */
     @Override
     public final void unsubscribeNotification(short notificationID, INotificationConsumer consumerProtocol) {
