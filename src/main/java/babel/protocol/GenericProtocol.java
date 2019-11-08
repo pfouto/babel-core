@@ -36,7 +36,12 @@ public abstract class GenericProtocol implements IMessageConsumer, ITimerConsume
     private Thread executionThread;
     private String protoName;
     private short protoId;
-    private final INetwork network;
+
+    /**
+     * This variable represents the instance of INetwork associated with the operation of this protocol.
+     * The variable is final and must be set through a call to the constructor of GenericProtocol
+     */
+    protected final INetwork network;
 
     protected final Host myself;
 
