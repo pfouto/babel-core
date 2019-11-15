@@ -6,7 +6,7 @@
 
     <groupId>pt.unl.fct.di.novasys</groupId>
     <artifactId>babel-core</artifactId>
-    <version>0.3.9-alpha</version>
+    <version>0.3.10-alpha</version>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -64,7 +64,7 @@
         <dependency>
             <groupId>pt.unl.fct.di.novasys</groupId>
             <artifactId>network-layer</artifactId>
-            <version>1.1.6-SNAPSHOT</version>
+            <version>1.1.7-SNAPSHOT</version>
         </dependency>
     </dependencies>
 </project>
