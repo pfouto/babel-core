@@ -10,13 +10,13 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class AddressedMessageSerializer implements ISerializer<AddressedMessage> {
 
-    Map<Short, ISerializer<? extends ProtoMessage>> serializers;
+    Map<Short, ISerializer<ProtoMessage>> serializers;
 
-    public AddressedMessageSerializer(Map<Short, ISerializer<? extends ProtoMessage>> serializers){
+    public AddressedMessageSerializer(Map<Short, ISerializer<ProtoMessage>> serializers){
         this.serializers = serializers;
     }
 
-    public void registerProtoSerializer(short msgCode, ISerializer<? extends ProtoMessage> protoSerializer){
+    public void registerProtoSerializer(short msgCode, ISerializer<ProtoMessage> protoSerializer){
         if (serializers.putIfAbsent(msgCode, protoSerializer) != null)
             throw new AssertionError("Trying to re-register serializer in Babel" + msgCode);
     }

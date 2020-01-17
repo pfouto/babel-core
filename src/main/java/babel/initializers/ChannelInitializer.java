@@ -8,9 +8,10 @@ import network.ISerializer;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.Properties;
 
 public interface ChannelInitializer<T extends IChannel<AddressedMessage>> {
 
     T initialize(ISerializer<AddressedMessage> serializer, ChannelListener<AddressedMessage> list,
-                 Map<String, String> arguments) throws IOException;
+                 Properties properties) throws IOException;
 }

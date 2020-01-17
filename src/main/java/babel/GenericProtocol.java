@@ -112,7 +112,7 @@ public abstract class GenericProtocol implements ProtoConsumers {
      * @throws HandlerRegistrationException if a handler for the message id is already registered
      */
     protected final void registerMessageHandler(short id, ProtoMessageHandler handler,
-                                                ISerializer<? extends ProtoMessage> serializer)
+                                                ISerializer<ProtoMessage> serializer)
             throws HandlerRegistrationException {
         if (this.messageHandlers.putIfAbsent(id, handler) != null)
             throw new HandlerRegistrationException("Conflict in registering handler for message with id " + id + ".");
@@ -270,8 +270,8 @@ public abstract class GenericProtocol implements ProtoConsumers {
 
     /* ------------------------- NETWORK/CHANNELS ---------------------- */
 
-    protected final int getChannel(String channelName, Map<String, String> args) throws IOException {
-        int channelId = babel.createChannel(channelName, this.protoId, this, args);
+    protected final int getChannel(String channelName, Properties props) throws IOException {
+        int channelId = babel.createChannel(channelName, this.protoId, this, props);
         channelSet.add(channelId);
         if (defaultChannel == -1) defaultChannel = channelId;
         return channelId;

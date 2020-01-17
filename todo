@@ -1,12 +1,3 @@
-protocol can register channel event handlers (in generic protocol)
-
-protocol can send messages by calling sendMessage(msg, to, Optional<channel>)
-
-on babel receive event: check interested protocols and forward. In generic protocol, if event is not registered, ignore
-on babel receive message: check message dest proto and forward. In generic protocol, if message is not registered, ERROR
-
-
-
 OPTIONS:
 
     register message listener/serializer in channel instead of entire babel?

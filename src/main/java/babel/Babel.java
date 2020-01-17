@@ -166,8 +166,8 @@ public class Babel {
     }
 
     // ----------------------------- NETWORK
-    public int createChannel(String channelName, short protoId, ChannelConsumer consumerProto,
-                             Map<String, String> args) throws IOException {
+    public int createChannel(String channelName, short protoId, ChannelConsumer consumerProto, Properties props)
+            throws IOException {
         ChannelInitializer<? extends IChannel<?>> initializer = initializers.get(channelName);
         if (initializer == null)
             throw new IllegalArgumentException("Channel initializer not registered: " + channelName);
@@ -175,7 +175,7 @@ public class Babel {
         int channelId = channelIdGenerator.incrementAndGet();
         ChannelToProtoForwarder forwarder = new ChannelToProtoForwarder(channelId);
         forwarder.addConsumer(protoId, consumerProto);
-        IChannel<AddressedMessage> newChannel = initializer.initialize(msgSerializer, forwarder, args);
+        IChannel<AddressedMessage> newChannel = initializer.initialize(msgSerializer, forwarder, props);
         channelMap.put(channelId, Pair.of(newChannel, forwarder));
         return channelId;
     }
@@ -203,7 +203,7 @@ public class Babel {
         channelPair.getKey().closeConnection(target);
     }
 
-    public void registerSerializer(short msgCode, ISerializer<? extends ProtoMessage> serializer) {
+    public void registerSerializer(short msgCode, ISerializer<ProtoMessage> serializer) {
         msgSerializer.registerProtoSerializer(msgCode, serializer);
     }
 

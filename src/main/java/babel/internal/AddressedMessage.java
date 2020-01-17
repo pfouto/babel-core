@@ -14,6 +14,15 @@ public class AddressedMessage {
         this.destProto = dest;
     }
 
+    @Override
+    public String toString() {
+        return "AddressedMessage{" +
+                "msg=" + msg +
+                ", sourceProto=" + sourceProto +
+                ", destProto=" + destProto +
+                '}';
+    }
+
     public ProtoMessage getMsg() {
         return msg;
     }

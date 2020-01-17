@@ -1,6 +1,7 @@
 package babel.internal;
 
 import babel.GenericProtocol;
+import babel.protocol.ProtoMessage;
 import channel.ChannelEvent;
 import network.data.Host;
 
