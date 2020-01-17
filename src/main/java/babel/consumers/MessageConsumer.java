@@ -2,8 +2,7 @@ package babel.consumers;
 
 
 import babel.GenericProtocol;
-import babel.internal.TimerEvent;
-import babel.protocol.ProtoTimer;
+import babel.internal.MessageEvent;
 
 /**
  * An interface of a timer event consumer
@@ -15,7 +14,7 @@ import babel.protocol.ProtoTimer;
  * Used in:
  * @see babel.Babel
  */
-public interface TimerConsumer {
+public interface MessageConsumer {
 
     /**
      * Deliver the timer event to the correct protocol
@@ -24,5 +23,5 @@ public interface TimerConsumer {
      *
      * @param t the timer to be delivered
      */
-    void deliverTimer(TimerEvent t);
+    void deliverMessage(MessageEvent t);
 }

@@ -1,20 +1,18 @@
 package babel;
 
-import babel.consumers.NotificationConsumer;
-import babel.consumers.IPCConsumer;
-import babel.consumers.TimerConsumer;
+import babel.consumers.*;
 import babel.exceptions.DestinationProtocolDoesNotExist;
 import babel.exceptions.HandlerRegistrationException;
 import babel.handlers.*;
 import babel.internal.*;
 import babel.protocol.*;
 import network.*;
+import network.data.Host;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Properties;
+import java.io.IOException;
+import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -25,21 +23,22 @@ import java.util.concurrent.LinkedBlockingQueue;
  * <p>
  * Users should extend this class to implement their protocols
  */
-public abstract class GenericProtocol implements IMessageConsumer, TimerConsumer, NotificationConsumer, IPCConsumer, Runnable {
+public abstract class GenericProtocol implements ProtoConsumers {
 
     private BlockingQueue<InternalEvent> queue;
     private Thread executionThread;
     private String protoName;
     private short protoId;
-    private final INetwork network;
 
-    protected final Host myself;
+    private Set<Integer> channelSet;
+    private int defaultChannel;
 
     private Map<Short, ProtoMessageHandler> messageHandlers;
     private Map<Short, ProtoTimerHandler> timerHandlers;
     private Map<Short, ProtoRequestHandler> requestHandlers;
     private Map<Short, ProtoReplyHandler> replyHandlers;
     private Map<Short, ProtoNotificationHandler> notificationHandlers;
+    private Map<Short, ProtoChannelEventHandler> channelEventHandlers;
 
     private static final Logger logger = LogManager.getLogger(GenericProtocol.class);
 
@@ -50,16 +49,15 @@ public abstract class GenericProtocol implements IMessageConsumer, TimerConsumer
      * and network service
      *
      * @param protoName name of the protocol
-     * @param protoID   numeric identifier
-     * @param net       network service
+     * @param protoId   numeric identifier
      */
-    public GenericProtocol(String protoName, short protoID, INetwork net) {
+    public GenericProtocol(String protoName, short protoId) {
         this.queue = new LinkedBlockingQueue<>();
-        this.protoId = protoID;
+        this.protoId = protoId;
         this.protoName = protoName;
-        this.network = net;
-        this.myself = network.myHost();
-        this.executionThread = new Thread(this, protoID + " - " + protoName);
+        this.executionThread = new Thread(this::mainLoop, protoId + " - " + protoName);
+        channelSet = new HashSet<>();
+        defaultChannel = -1;
 
         //Initialize maps for event handlers
         this.messageHandlers = new HashMap<>();
@@ -67,6 +65,7 @@ public abstract class GenericProtocol implements IMessageConsumer, TimerConsumer
         this.requestHandlers = new HashMap<>();
         this.replyHandlers = new HashMap<>();
         this.notificationHandlers = new HashMap<>();
+        this.channelEventHandlers = new HashMap<>();
     }
 
     /**
@@ -101,6 +100,8 @@ public abstract class GenericProtocol implements IMessageConsumer, TimerConsumer
         this.executionThread.start();
     }
 
+    /* ------------------ PROTOCOL REGISTERS -------------------------------------------------*/
+
     /**
      * Register a message handler for the protocol to process message events
      * form the network
@@ -111,12 +112,17 @@ public abstract class GenericProtocol implements IMessageConsumer, TimerConsumer
      * @throws HandlerRegistrationException if a handler for the message id is already registered
      */
     protected final void registerMessageHandler(short id, ProtoMessageHandler handler,
-                                                ISerializer<? extends ProtoMessage> serializer) throws HandlerRegistrationException {
-        if (this.messageHandlers.containsKey(id))
+                                                ISerializer<? extends ProtoMessage> serializer)
+            throws HandlerRegistrationException {
+        if (this.messageHandlers.putIfAbsent(id, handler) != null)
             throw new HandlerRegistrationException("Conflict in registering handler for message with id " + id + ".");
-        network.registerConsumer(id, this);
-        network.registerSerializer(id, serializer);
-        this.messageHandlers.put(id, handler);
+        babel.registerSerializer(id, serializer);
+    }
+
+    protected final void registerChannelEventHandler(short id, ProtoChannelEventHandler handler)
+            throws HandlerRegistrationException {
+        if (this.channelEventHandlers.putIfAbsent(id, handler) != null)
+            throw new HandlerRegistrationException("Conflict in registering handler for channel event with id " + id);
     }
 
     /**
@@ -126,10 +132,10 @@ public abstract class GenericProtocol implements IMessageConsumer, TimerConsumer
      * @param handler the function to process timer event
      * @throws HandlerRegistrationException if a handler for the timer id is already registered
      */
-    protected final void registerTimerHandler(short id, ProtoTimerHandler handler) throws HandlerRegistrationException {
-        if (this.timerHandlers.containsKey(id))
+    protected final void registerTimerHandler(short id, ProtoTimerHandler handler)
+            throws HandlerRegistrationException {
+        if (this.timerHandlers.putIfAbsent(id, handler) != null)
             throw new HandlerRegistrationException("Conflict in registering handler for timer with id " + id + ".");
-        this.timerHandlers.put(id, handler);
     }
 
     /**
@@ -139,7 +145,8 @@ public abstract class GenericProtocol implements IMessageConsumer, TimerConsumer
      * @param handler the function to process request event
      * @throws HandlerRegistrationException if a handler for the request id is already registered
      */
-    protected final void registerRequestHandler(short id, ProtoRequestHandler handler) throws HandlerRegistrationException {
+    protected final void registerRequestHandler(short id, ProtoRequestHandler handler)
+            throws HandlerRegistrationException {
         if (this.requestHandlers.containsKey(id))
             throw new HandlerRegistrationException("Conflict in registering handler for request with id " + id + ".");
         this.requestHandlers.put(id, handler);
@@ -152,20 +159,23 @@ public abstract class GenericProtocol implements IMessageConsumer, TimerConsumer
      * @param handler the function to process reply event
      * @throws HandlerRegistrationException if a handler for the reply id is already registered
      */
-    protected final void registerReplyHandler(short id, ProtoReplyHandler handler) throws HandlerRegistrationException {
+    protected final void registerReplyHandler(short id, ProtoReplyHandler handler)
+            throws HandlerRegistrationException {
         if (this.replyHandlers.containsKey(id))
             throw new HandlerRegistrationException("Conflict in registering handler for reply with id " + id + ".");
         this.replyHandlers.put(id, handler);
     }
 
-    @Override
-    public final void run() {
+    /**
+     * ------------------ MAIN LOOP -------------------------------------------------
+     **/
+    public final void mainLoop() {
         while (true) {
             try {
                 InternalEvent pe = this.queue.take();
                 switch (pe.getType()) {
                     case MESSAGE_EVENT:
-                        this.handleMessage((MessageInEvent) pe);
+                        this.handleMessage((MessageEvent) pe);
                         break;
                     case TIMER_EVENT:
                         this.handleTimer((TimerEvent) pe);
@@ -176,9 +186,12 @@ public abstract class GenericProtocol implements IMessageConsumer, TimerConsumer
                     case IPC_EVENT:
                         this.handleIPC((IPCEvent) pe);
                         break;
+                    case CHANNEL_EVENT:
+                        this.handleChannelEvent((ChannelEventEvent) pe);
+                        break;
                     default:
-                        throw new AssertionError(
-                                "Unexpected event received by babel.protocol " + protoId + " (" + protoName + ")");
+                        throw new AssertionError("Unexpected event received by babel.protocol "
+                                + protoId + " (" + protoName + ")");
                 }
             } catch (InterruptedException e) {
                 e.printStackTrace();
@@ -186,14 +199,24 @@ public abstract class GenericProtocol implements IMessageConsumer, TimerConsumer
         }
     }
 
-    private void handleMessage(MessageInEvent m) {
+    private void handleMessage(MessageEvent m) {
         logger.debug("Receiving: " + m.getMsg() + " from " + m.getFrom());
-        ProtoMessageHandler h = this.messageHandlers.get(m.getMsg().getId());
+        ProtoMessageHandler h = this.messageHandlers.get(m.getMsg().getMsg().getId());
         if (h == null) {
-            logger.warn("Discarding unexpected message (id " + m.getMsg().getId() + "): " + m);
+            logger.warn("Discarding unexpected message (id " + m.getMsg().getMsg().getId() + "): " + m);
             return;
         }
-        h.receive(m.getMsg(), m.getFrom());
+        h.receive(m.getMsg().getMsg(), m.getFrom(), m.getMsg().getSourceProto(), m.getChannelId());
+    }
+
+    private void handleChannelEvent(ChannelEventEvent m) {
+        logger.debug("Receiving: " + m);
+        ProtoChannelEventHandler h = this.channelEventHandlers.get(m.getEvent().getId());
+        if (h == null) {
+            logger.warn("Discarding channel event (id " + m.getChannelId() + "): " + m);
+            return;
+        }
+        h.handleEvent(m.getEvent(), m.getChannelId());
     }
 
     private void handleTimer(TimerEvent t) {
@@ -214,8 +237,8 @@ public abstract class GenericProtocol implements IMessageConsumer, TimerConsumer
         h.uponNotification(n.getNotification(), n.getEmitterID());
     }
 
-    private void handleIPC(IPCEvent i){
-        switch (i.getIpc().getType()){
+    private void handleIPC(IPCEvent i) {
+        switch (i.getIpc().getType()) {
             case REPLY:
                 handleReply((ProtoReply) i.getIpc(), i.getSenderID());
                 break;
@@ -245,62 +268,52 @@ public abstract class GenericProtocol implements IMessageConsumer, TimerConsumer
         h.uponReply(r, from);
     }
 
-    /* ------------------------- NETWORK ---------------------- */
+    /* ------------------------- NETWORK/CHANNELS ---------------------- */
 
-    /**
-     * Send the provided message to the provided host destination
-     *
-     * @param msg         the message
-     * @param destination the host destination
-     */
+    protected final int getChannel(String channelName, Map<String, String> args) throws IOException {
+        int channelId = babel.createChannel(channelName, this.protoId, this, args);
+        channelSet.add(channelId);
+        if (defaultChannel == -1) defaultChannel = channelId;
+        return channelId;
+    }
+
+    protected final void setDefaultChannel(int channelId) {
+        if (!channelSet.contains(channelId))
+            throw new AssertionError("Trying to set as default a not registered channel " + channelId);
+        defaultChannel = channelId;
+    }
+
     protected final void sendMessage(ProtoMessage msg, Host destination) {
-        logger.debug("Sending: " + msg + " to " + destination);
-        network.sendMessage(msg.getId(), msg, destination);
+        sendMessage(msg, this.protoId, destination, defaultChannel);
     }
 
-    /**
-     * Send the provided message to the provided host destination,
-     * using a dedicated, temporary TCP connection.
-     *
-     * @param msg         the message
-     * @param destination the host destination
-     */
-    protected final void sendMessageSideChannel(ProtoMessage msg, Host destination) {
-        logger.debug("SendingSideChannel: " + msg + " to " + destination);
-        network.sendMessage(msg.getId(), msg, destination, true);
+    protected final void sendMessage(ProtoMessage msg, Host destination, int channel) {
+        sendMessage(msg, this.protoId, destination, channel);
     }
 
-    /**
-     * Register a listener for the network layer
-     *
-     * @param listener the listener
-     * @see INodeListener
-     */
-    protected final void registerNodeListener(INodeListener listener) {
-        network.registerNodeListener(listener);
+    protected final void sendMessage(ProtoMessage msg, short destProto, Host destination) {
+        sendMessage(msg, destProto, destination, defaultChannel);
     }
 
-    /**
-     * Opens a (persistent) TCP connection in the network layer to a given peer.
-     *
-     * @param peer represents the peer to which a TCP connection will be created.
-     * @see INetwork
-     */
-    protected final void addNetworkPeer(Host peer) {
-        network.addPeer(peer);
+    protected final void sendMessage(ProtoMessage msg, short destProto, Host destination, int channelId) {
+        if (!channelSet.contains(channelId))
+            throw new AssertionError("Trying to send message to invalid channel " + channelId);
+
+        logger.debug("Sending: " + msg + " to " + destination + " proto " + destProto + " channel " + channelId);
+        babel.sendMessage(channelId, new AddressedMessage(msg, this.protoId, destProto), destination);
     }
 
-    /**
-     * Closes the network layer TCP connection to a given peer.
-     *
-     * @param peer represents the peer to which a TCP connection will be closed.
-     * @see INetwork
-     */
-    protected final void removeNetworkPeer(Host peer) {
-        network.removePeer(peer);
+    protected final void closeConnection(Host peer) {
+        closeConnection(peer, defaultChannel);
     }
 
-    /* ---------------------------------------- REQ / REPLY ------------------------------------- */
+    protected final void closeConnection(Host peer, int channelId) {
+        if (!channelSet.contains(channelId))
+            throw new AssertionError("Trying to close connection in invalid channel " + channelId);
+        babel.closeConnection(channelId, peer);
+    }
+
+    /* ------------------ IPC BABEL PROXY -------------------------------------------------*/
 
     /**
      * Send a request to the destination protocol
@@ -322,7 +335,25 @@ public abstract class GenericProtocol implements IMessageConsumer, TimerConsumer
         babel.sendIPC(new IPCEvent(reply, protoId, destination));
     }
 
-    /* -------------------------- TIMERS ----------------------- */
+    // ------------------------------ NOTIFICATION BABEL PROXY ---------------------------------
+    protected final void subscribeNotification(short nId, ProtoNotificationHandler h)
+            throws HandlerRegistrationException {
+        ProtoNotificationHandler oldHandler = notificationHandlers.putIfAbsent(nId, h);
+        if (oldHandler != null)
+            throw new HandlerRegistrationException("Conflict in registering handler for notification with id " + nId);
+        babel.subscribeNotification(nId, this);
+    }
+
+    protected final void unsubscribeNotification(short nId) {
+        notificationHandlers.remove(nId);
+        babel.unsubscribeNotification(nId, this);
+    }
+
+    protected final void triggerNotification(ProtoNotification n) {
+        babel.triggerNotification(new NotificationEvent(n, protoId));
+    }
+
+    /* -------------------------- TIMER BABEL PROXY ----------------------- */
 
     /**
      * Setups a period timer
@@ -357,38 +388,20 @@ public abstract class GenericProtocol implements IMessageConsumer, TimerConsumer
         return babel.cancelTimer(timerID);
     }
 
-    // ------------------------------ NOTIFICATIONS ---------------------------------
+    // --------------------------------- DELIVERERS FROM BABEL ------------------------------------
 
-    protected final void subscribeNotification(short nId, ProtoNotificationHandler h) throws HandlerRegistrationException {
-        ProtoNotificationHandler oldHandler = notificationHandlers.putIfAbsent(nId, h);
-        if (oldHandler != null)
-            throw new HandlerRegistrationException("Conflict in registering handler for notification with id " + nId);
-        babel.subscribeNotification(nId, this);
+
+    @Override
+    public void deliverChannelEvent(ChannelEventEvent event) {
+        queue.add(event);
     }
-
-    protected final void unsubscribeNotification(short nId) {
-        notificationHandlers.remove(nId);
-        babel.unsubscribeNotification(nId, this);
-    }
-
-    protected final void triggerNotification(ProtoNotification n) {
-        babel.triggerNotification(new NotificationEvent(n, protoId));
-    }
-
-    // --------------------------------- DELIVERERS ------------------------------------
 
     /**
      * Delivers a message to the protocol
-     * <p>
-     * NOTE: Message comes from the network layer
-     *
-     * @param msgID numeric identifier of the message
-     * @param msg   the message itself
-     * @param from  the host from which the message was sent
      */
     @Override
-    public final void deliverMessage(short msgID, Object msg, Host from) {
-        queue.add(new MessageInEvent((ProtoMessage) msg, from));
+    public final void deliverMessage(MessageEvent msgIn) {
+        queue.add(msgIn);
     }
 
     /**

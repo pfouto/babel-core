@@ -1,35 +1,13 @@
+protocol can register channel event handlers (in generic protocol)
 
-Babel:
-    @ Remove "getProtocol"
-    @ - Protocols cannot get references to others
-    @ - Everything goes through Babel
+protocol can send messages by calling sendMessage(msg, to, Optional<channel>)
 
-Notifications:
-    Subscribers map in Babel
-    Notifications map concurrent
-    Notification subscribe receives handler
-    Remove notification.registerhandler
-    babel.subscribe
-    babel.registernotification
-    babel.triggernotification
+on babel receive event: check interested protocols and forward. In generic protocol, if event is not registered, ignore
+on babel receive message: check message dest proto and forward. In generic protocol, if message is not registered, ERROR
 
-Reply/Request:
-    @ babel.reply
-    @ babel.request
 
-Timer:
-    pass consumer on timer start
-    remove "registerTimerHandler"
-    SetupTimer receives handler as an argument
-    Can remove UUID
-    id is generated sequentially
-    babel tracks protocol id + internal timer id
 
-Packages:
-    @ Change interface structure
+OPTIONS:
 
-ProtocolInteraction:
-    @ Remove "invert"
-    @ Remove sets
-    @ Make sender and destination final
-    @ Create "ProtocolRequest.createResponse()"
+    register message listener/serializer in channel instead of entire babel?
+    register channelEvent listener in channel instead of entire babel?

@@ -1,7 +1,10 @@
 package babel.handlers;
 
+import babel.internal.AddressedMessage;
+import babel.internal.ChannelEventEvent;
 import babel.internal.MessageEvent;
 import babel.protocol.ProtoMessage;
+import channel.ChannelEvent;
 import network.data.Host;
 
 /**
@@ -14,13 +17,13 @@ import network.data.Host;
  *
  */
 @FunctionalInterface
-public interface ProtoMessageHandler {
+public interface ProtoChannelEventHandler {
 
     /**
      * Performs this operation on the ProtocolMessage.
      *
      * @param msg the received message
      */
-    void receive(ProtoMessage msg, Host from, int sourceProto, int channelId);
+    void handleEvent(ChannelEvent<AddressedMessage> event, int channelId);
 
 }

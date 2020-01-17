@@ -1,22 +1,28 @@
 package babel;
 
+import babel.consumers.ChannelConsumer;
 import babel.consumers.NotificationConsumer;
 import babel.consumers.TimerConsumer;
 import babel.exceptions.DestinationProtocolDoesNotExist;
 import babel.exceptions.InvalidParameterException;
 import babel.exceptions.ProtocolAlreadyExistsException;
-import babel.internal.IPCEvent;
-import babel.internal.NotificationEvent;
-import babel.internal.TimerEvent;
+import babel.initializers.AckosChannelInitializer;
+import babel.initializers.ChannelInitializer;
+import babel.internal.*;
+import babel.protocol.ProtoMessage;
 import babel.protocol.ProtoTimer;
-import network.INetwork;
-import network.NetworkService;
+import channel.IChannel;
+import network.ISerializer;
+import network.data.Host;
+import org.apache.commons.lang3.NotImplementedException;
+import org.apache.commons.lang3.tuple.Pair;
 
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.PriorityBlockingQueue;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -70,49 +76,65 @@ public class Babel {
         return system;
     }
 
+    //Protocols
     private Map<Short, GenericProtocol> protocolMap;
     private Map<String, GenericProtocol> protocolByNameMap;
     private Map<Short, Set<NotificationConsumer>> subscribers;
 
+    //Timers
     private Map<Long, TimerEvent> allTimers;
     private PriorityBlockingQueue<TimerEvent> timerQueue;
     private Thread timersThread;
     private AtomicLong timersCounter;
 
-    private INetwork network;
-
-    private Properties configuration;
+    //Channels
+    private Map<String, ChannelInitializer<? extends IChannel<AddressedMessage>>> initializers;
+    private AddressedMessageSerializer msgSerializer;
+    private Map<Integer, Pair<IChannel<AddressedMessage>, ChannelToProtoForwarder>> channelMap;
+    private AtomicInteger channelIdGenerator;
 
     private Babel() {
+        //Protocols
         this.protocolMap = new ConcurrentHashMap<>();
         this.protocolByNameMap = new ConcurrentHashMap<>();
         this.subscribers = new ConcurrentHashMap<>();
+
+        //Timers
         allTimers = new HashMap<>();
         timerQueue = new PriorityBlockingQueue<>();
         timersCounter = new AtomicLong();
-        timersThread = new Thread(() -> {
-            while (true) {
-                long now = System.currentTimeMillis();
-                TimerEvent tE = timerQueue.peek();
+        timersThread = new Thread(this::timerLoop);
 
-                long toSleep = tE != null ? tE.getTriggerTime() - now : Long.MAX_VALUE;
+        //Channels
+        channelMap = new ConcurrentHashMap<>();
+        channelIdGenerator = new AtomicInteger(0);
+        msgSerializer = new AddressedMessageSerializer(new ConcurrentHashMap<>());
+        this.initializers = new ConcurrentHashMap<>();
+        initializers.put("Ackos", new AckosChannelInitializer());
+    }
 
-                if (toSleep <= 0) {
-                    TimerEvent t = timerQueue.poll();
-                    //Deliver
-                    t.getConsumer().deliverTimer(t);
-                    if (t.isPeriodic()) {
-                        t.setTriggerTime(now + t.getPeriod());
-                        timerQueue.add(t);
-                    }
-                } else {
-                    try {
-                        Thread.sleep(toSleep);
-                    } catch (InterruptedException ignored) {
-                    }
+    private void timerLoop() {
+        while (true) {
+            long now = System.currentTimeMillis();
+            TimerEvent tE = timerQueue.peek();
+
+            long toSleep = tE != null ? tE.getTriggerTime() - now : Long.MAX_VALUE;
+
+            if (toSleep <= 0) {
+                TimerEvent t = timerQueue.remove();
+                //Deliver
+                t.getConsumer().deliverTimer(t);
+                if (t.isPeriodic()) {
+                    t.setTriggerTime(now + t.getPeriod());
+                    timerQueue.add(t);
+                }
+            } else {
+                try {
+                    Thread.sleep(toSleep);
+                } catch (InterruptedException ignored) {
                 }
             }
-        });
+        }
     }
 
     /**
@@ -143,19 +165,49 @@ public class Babel {
         }
     }
 
-    /**
-     * Returns the name of the protocol register in Babel with the id provided
-     *
-     * @param id the numeric identifier of the protocol
-     * @return the protocol name or null if the protocol is not registered
-     */
-    public String getProtocolName(short id) {
-        GenericProtocol gp = protocolMap.get(id);
-        return gp != null ? gp.getProtoName() : null;
+    // ----------------------------- NETWORK
+    public int createChannel(String channelName, short protoId, ChannelConsumer consumerProto,
+                             Map<String, String> args) throws IOException {
+        ChannelInitializer<? extends IChannel<?>> initializer = initializers.get(channelName);
+        if (initializer == null)
+            throw new IllegalArgumentException("Channel initializer not registered: " + channelName);
+
+        int channelId = channelIdGenerator.incrementAndGet();
+        ChannelToProtoForwarder forwarder = new ChannelToProtoForwarder(channelId);
+        forwarder.addConsumer(protoId, consumerProto);
+        IChannel<AddressedMessage> newChannel = initializer.initialize(msgSerializer, forwarder, args);
+        channelMap.put(channelId, Pair.of(newChannel, forwarder));
+        return channelId;
+    }
+
+    public int getSharedChannel(){
+        //TODO share channels somehow
+        throw new NotImplementedException("Not implemented...");
+    }
+
+    public void sendMessage(int channelId, AddressedMessage msg, Host target){
+        //TODO check if proto registered this channel? alternatively do it in Generic Protocol
+        Pair<IChannel<AddressedMessage>, ChannelToProtoForwarder> channelPair = channelMap.get(channelId);
+        if(channelPair == null)
+            throw new AssertionError("Sending message to non-existing channelId " + channelId);
+
+        channelPair.getKey().sendMessage(msg, target);
+    }
+
+    public void closeConnection(int channelId, Host target){
+        //TODO check if proto registered this channel? alternatively do it in Generic Protocol
+        Pair<IChannel<AddressedMessage>, ChannelToProtoForwarder> channelPair = channelMap.get(channelId);
+        if(channelPair == null)
+            throw new AssertionError("Closing connection in non-existing channelId " + channelId);
+
+        channelPair.getKey().closeConnection(target);
+    }
+
+    public void registerSerializer(short msgCode, ISerializer<? extends ProtoMessage> serializer) {
+        msgSerializer.registerProtoSerializer(msgCode, serializer);
     }
 
     // ----------------------------- REQUEST / REPLY / NOTIFY
-
     public void sendIPC(IPCEvent ipc) throws DestinationProtocolDoesNotExist {
         GenericProtocol gp = protocolMap.get(ipc.getDestinationID());
         if (gp == null)
@@ -188,7 +240,8 @@ public class Babel {
      */
     long setupPeriodicTimer(ProtoTimer t, TimerConsumer consumer, long first, long period) {
         long id = timersCounter.incrementAndGet();
-        timerQueue.add(new TimerEvent(t, id, consumer, System.currentTimeMillis() + first, true, period));
+        timerQueue.add(new TimerEvent(t, id, consumer,
+                System.currentTimeMillis() + first, true, period));
         timersThread.interrupt();
         return id;
     }
@@ -201,7 +254,8 @@ public class Babel {
      */
     long setupTimer(ProtoTimer t, TimerConsumer consumer, long timeout) {
         long id = timersCounter.incrementAndGet();
-        TimerEvent newTimer = new TimerEvent(t, id, consumer, System.currentTimeMillis() + timeout, false, -1);
+        TimerEvent newTimer = new TimerEvent(t, id, consumer,
+                System.currentTimeMillis() + timeout, false, -1);
         timerQueue.add(newTimer);
         allTimers.put(newTimer.getUuid(), newTimer);
         timersThread.interrupt();
@@ -238,8 +292,9 @@ public class Babel {
      * @throws IOException               if the provided file does not exist
      * @throws InvalidParameterException if the console parameters are not in the format: prop=value
      */
-    public Properties loadConfig(String propsFilename, String[] args) throws IOException, InvalidParameterException {
-        configuration = new Properties();
+    public Properties loadConfig(String propsFilename, String[] args)
+            throws IOException, InvalidParameterException {
+        Properties configuration = new Properties();
         configuration.load(new FileInputStream(propsFilename));
         //Override with launch parameter props
         for (String arg : args) {
@@ -249,22 +304,6 @@ public class Babel {
             else
                 throw new InvalidParameterException("Unknown parameter: " + arg);
         }
-        return this.configuration;
+        return configuration;
     }
-
-    /**
-     * Returns the instance of the network layer
-     *
-     * @return the network layer instance
-     * @throws Exception if no configuration was previously set
-     */
-    public synchronized INetwork getNetworkInstance() throws Exception {
-        if (this.network == null) {
-            if (this.configuration == null)
-                throw new Exception("Cannot access network without loading configuration.");
-            this.network = new NetworkService(this.configuration);
-        }
-        return this.network;
-    }
-
 }

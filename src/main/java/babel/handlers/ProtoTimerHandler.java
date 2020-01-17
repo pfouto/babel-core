@@ -9,7 +9,7 @@ import babel.protocol.ProtoTimer;
  * to operate via side-effects.
  *
  * <p>This is a <a href="package-summary.html">functional interface</a>
- * whose functional method is {@link #uponTimer(TimerEvent)}.
+ * whose functional method is {@link #uponTimer}.
  *
  */
 @FunctionalInterface
