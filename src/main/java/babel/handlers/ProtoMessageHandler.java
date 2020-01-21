@@ -11,13 +11,13 @@ import network.data.Host;
  *
  */
 @FunctionalInterface
-public interface ProtoMessageHandler {
+public interface ProtoMessageHandler<T extends ProtoMessage> {
 
     /**
      * Performs this operation on the ProtocolMessage.
      *
      * @param msg the received message
      */
-    void receive(ProtoMessage msg, Host from, int sourceProto, int channelId);
+    void receive(T msg, Host from, int sourceProto, int channelId);
 
 }

@@ -1,4 +1,7 @@
-OPTIONS:
+Register msg delivered / fail / sent per channel per message type (all)
 
-    register message listener/serializer in channel instead of entire babel?
-    register channelEvent listener in channel instead of entire babel?
+register handler for all messages for all 3
+
+generify every ProtoXXXXXXHandler
+
+catch class cast exception in main loop

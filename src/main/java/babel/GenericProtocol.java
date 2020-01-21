@@ -35,7 +35,7 @@ public abstract class GenericProtocol implements ProtoConsumers {
     private Set<Integer> channelSet;
     private int defaultChannel;
 
-    private Map<Short, ProtoMessageHandler> messageHandlers;
+    private Map<Short, ProtoMessageHandler<? extends ProtoMessage>> messageHandlers;
     private Map<Short, ProtoTimerHandler> timerHandlers;
     private Map<Short, ProtoRequestHandler> requestHandlers;
     private Map<Short, ProtoReplyHandler> replyHandlers;
@@ -115,7 +115,7 @@ public abstract class GenericProtocol implements ProtoConsumers {
      * @param serializer the serializer to serialize messages to the network
      * @throws HandlerRegistrationException if a handler for the message id is already registered
      */
-    protected final void registerMessageHandler(short id, ProtoMessageHandler handler,
+    protected final void registerMessageHandler(short id, ProtoMessageHandler<? extends ProtoMessage> handler,
                                                 ISerializer<ProtoMessage> serializer)
             throws HandlerRegistrationException {
         if (this.messageHandlers.putIfAbsent(id, handler) != null)
@@ -210,13 +210,25 @@ public abstract class GenericProtocol implements ProtoConsumers {
     }
 
     private void handleMessageIn(MessageInEvent m) {
+        //TODO change everything to this?
+        //TODO cannot seem to use properly with "this::function" in the protocol
+        //TODO how to solve warnings? (if possible at all)
+
+
         logger.debug("Receiving: " + m.getMsg() + " from " + m.getFrom());
-        ProtoMessageHandler h = this.messageHandlers.get(m.getMsg().getMsg().getId());
-        if (h == null) {
+        ProtoMessage msg = m.getMsg().getMsg();
+        ProtoMessageHandler h = this.messageHandlers.get(msg.getId());
+        if (h != null)
+            try {
+                h.receive(msg, m.getFrom(), m.getMsg().getSourceProto(), m.getChannelId());
+                //TODO apanhar este catch no main loop
+            } catch (ClassCastException e){
+                logger.error("Error in message handler with id: " + msg.getId());
+                e.printStackTrace();
+                System.exit(1);
+            }
+        else
             logger.warn("Discarding unexpected message (id " + m.getMsg().getMsg().getId() + "): " + m);
-            return;
-        }
-        h.receive(m.getMsg().getMsg(), m.getFrom(), m.getMsg().getSourceProto(), m.getChannelId());
     }
 
     private void handleMessageFailed(MessageFailedEvent e) {
@@ -278,6 +290,7 @@ public abstract class GenericProtocol implements ProtoConsumers {
         }
         h.uponRequest(r, from);
     }
+
 
     private void handleReply(ProtoReply r, short from) {
         ProtoReplyHandler h = this.replyHandlers.get(r.getId());
