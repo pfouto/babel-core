@@ -1,7 +1,6 @@
 package babel.internal;
 
 import babel.consumers.ChannelConsumer;
-import babel.protocol.ProtoMessage;
 import channel.ChannelEvent;
 import channel.ChannelListener;
 import network.data.Host;
@@ -32,11 +31,22 @@ public class ChannelToProtoForwarder implements ChannelListener<AddressedMessage
             throw new AssertionError("Channel " + channelId + " received message to protoId " +
                     addressedMessage.getDestProto() + " which is not registered in channel");
         }
-        channelConsumer.deliverMessage(new MessageEvent(addressedMessage, host, channelId));
+        channelConsumer.deliverMessageIn(new MessageInEvent(addressedMessage, host, channelId));
     }
 
     @Override
-    public void deliverEvent(ChannelEvent<AddressedMessage> channelEvent) {
-        consumers.values().forEach(v -> v.deliverChannelEvent(new ChannelEventEvent(channelEvent, channelId)));
+    public void messageSent(AddressedMessage addressedMessage, Host host) {
+        consumers.values().forEach(c -> c.deliverMessageSent(new MessageSentEvent(addressedMessage, host, channelId)));
+    }
+
+    @Override
+    public void messageFailed(AddressedMessage addressedMessage, Host host, Throwable throwable) {
+        consumers.values().forEach(c ->
+                c.deliverMessageFailed(new MessageFailedEvent(addressedMessage, host, throwable, channelId)));
+    }
+
+    @Override
+    public void deliverEvent(ChannelEvent channelEvent) {
+        consumers.values().forEach(v -> v.deliverChannelEvent(new CustomChannelEventEvent(channelEvent, channelId)));
     }
 }

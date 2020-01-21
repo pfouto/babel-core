@@ -25,6 +25,8 @@ import java.util.concurrent.LinkedBlockingQueue;
  */
 public abstract class GenericProtocol implements ProtoConsumers {
 
+    //TODO split in GenericConnectionlessProtocol and GenericConnectionProtocol
+
     private BlockingQueue<InternalEvent> queue;
     private Thread executionThread;
     private String protoName;
@@ -55,6 +57,8 @@ public abstract class GenericProtocol implements ProtoConsumers {
         this.queue = new LinkedBlockingQueue<>();
         this.protoId = protoId;
         this.protoName = protoName;
+
+        //TODO change to event loop (simplifies the deliver->poll->handle process)
         this.executionThread = new Thread(this::mainLoop, protoId + " - " + protoName);
         channelSet = new HashSet<>();
         defaultChannel = -1;
@@ -174,8 +178,14 @@ public abstract class GenericProtocol implements ProtoConsumers {
             try {
                 InternalEvent pe = this.queue.take();
                 switch (pe.getType()) {
-                    case MESSAGE_EVENT:
-                        this.handleMessage((MessageEvent) pe);
+                    case MESSAGE_IN_EVENT:
+                        this.handleMessageIn((MessageInEvent) pe);
+                        break;
+                    case MESSAGE_FAILED_EVENT:
+                        this.handleMessageFailed((MessageFailedEvent) pe);
+                        break;
+                    case MESSAGE_SENT_EVENT:
+                        this.handleMessageSent((MessageSentEvent) pe);
                         break;
                     case TIMER_EVENT:
                         this.handleTimer((TimerEvent) pe);
@@ -186,8 +196,8 @@ public abstract class GenericProtocol implements ProtoConsumers {
                     case IPC_EVENT:
                         this.handleIPC((IPCEvent) pe);
                         break;
-                    case CHANNEL_EVENT:
-                        this.handleChannelEvent((ChannelEventEvent) pe);
+                    case CUSTOM_CHANNEL_EVENT:
+                        this.handleChannelEvent((CustomChannelEventEvent) pe);
                         break;
                     default:
                         throw new AssertionError("Unexpected event received by babel.protocol "
@@ -199,7 +209,7 @@ public abstract class GenericProtocol implements ProtoConsumers {
         }
     }
 
-    private void handleMessage(MessageEvent m) {
+    private void handleMessageIn(MessageInEvent m) {
         logger.debug("Receiving: " + m.getMsg() + " from " + m.getFrom());
         ProtoMessageHandler h = this.messageHandlers.get(m.getMsg().getMsg().getId());
         if (h == null) {
@@ -209,7 +219,17 @@ public abstract class GenericProtocol implements ProtoConsumers {
         h.receive(m.getMsg().getMsg(), m.getFrom(), m.getMsg().getSourceProto(), m.getChannelId());
     }
 
-    private void handleChannelEvent(ChannelEventEvent m) {
+    private void handleMessageFailed(MessageFailedEvent e) {
+        onMessageFailed(e.getMsg().getMsg(), e.getTo(), e.getMsg().getDestProto(), e.getCause(), e.getChannelId());
+    }
+    protected abstract void onMessageFailed(ProtoMessage msg, Host to, short destProto, Throwable cause, int channelId);
+
+    private void handleMessageSent(MessageSentEvent e) {
+        onMessageSent(e.getMsg().getMsg(), e.getTo(), e.getMsg().getDestProto(), e.getChannelId());
+    }
+    protected abstract void onMessageSent(ProtoMessage msg, Host to, short destProto, int channelId);
+
+    private void handleChannelEvent(CustomChannelEventEvent m) {
         logger.debug("Receiving: " + m);
         ProtoChannelEventHandler h = this.channelEventHandlers.get(m.getEvent().getId());
         if (h == null) {
@@ -392,7 +412,7 @@ public abstract class GenericProtocol implements ProtoConsumers {
 
 
     @Override
-    public void deliverChannelEvent(ChannelEventEvent event) {
+    public final void deliverChannelEvent(CustomChannelEventEvent event) {
         queue.add(event);
     }
 
@@ -400,8 +420,18 @@ public abstract class GenericProtocol implements ProtoConsumers {
      * Delivers a message to the protocol
      */
     @Override
-    public final void deliverMessage(MessageEvent msgIn) {
+    public final void deliverMessageIn(MessageInEvent msgIn) {
         queue.add(msgIn);
+    }
+
+    @Override
+    public final void deliverMessageSent(MessageSentEvent event){
+        queue.add(event);
+    }
+
+    @Override
+    public final void deliverMessageFailed(MessageFailedEvent event){
+        queue.add(event);
     }
 
     /**

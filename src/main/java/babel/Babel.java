@@ -8,6 +8,8 @@ import babel.exceptions.InvalidParameterException;
 import babel.exceptions.ProtocolAlreadyExistsException;
 import babel.initializers.AckosChannelInitializer;
 import babel.initializers.ChannelInitializer;
+import babel.initializers.ClientChannelInitializer;
+import babel.initializers.ServerChannelInitializer;
 import babel.internal.*;
 import babel.protocol.ProtoMessage;
 import babel.protocol.ProtoTimer;
@@ -111,6 +113,8 @@ public class Babel {
         msgSerializer = new AddressedMessageSerializer(new ConcurrentHashMap<>());
         this.initializers = new ConcurrentHashMap<>();
         initializers.put("Ackos", new AckosChannelInitializer());
+        initializers.put("SimpleClient", new ClientChannelInitializer());
+        initializers.put("SimpleServer", new ServerChannelInitializer());
     }
 
     private void timerLoop() {

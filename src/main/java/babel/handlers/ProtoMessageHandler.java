@@ -1,6 +1,6 @@
 package babel.handlers;
 
-import babel.internal.MessageEvent;
+import babel.internal.MessageInEvent;
 import babel.protocol.ProtoMessage;
 import network.data.Host;
 
@@ -8,9 +8,6 @@ import network.data.Host;
  * Represents an operation that accepts a single input argument and returns no
  * result. Unlike most other functional interfaces, {@code Consumer} is expected
  * to operate via side-effects.
- *
- * <p>This is a <a href="package-summary.html">functional interface</a>
- * whose functional method is {@link #receive(MessageEvent)}.
  *
  */
 @FunctionalInterface

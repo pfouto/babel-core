@@ -3,18 +3,24 @@ package babel.internal;
 /**
  * An abstract class that represent a generic event
  *
- * @see MessageEvent
+ * @see MessageInEvent
  * @see TimerEvent
  * @see NotificationEvent
  * @see IPCEvent
  */
-public class InternalEvent {
+public abstract class InternalEvent {
 
     /**
      * Possible event types that can be represented
      */
     public enum EventType {
-        MESSAGE_EVENT, TIMER_EVENT, NOTIFICATION_EVENT, IPC_EVENT, CHANNEL_EVENT
+        MESSAGE_IN_EVENT,
+        TIMER_EVENT,
+        NOTIFICATION_EVENT,
+        IPC_EVENT,
+        MESSAGE_SENT_EVENT,
+        MESSAGE_FAILED_EVENT,
+        CUSTOM_CHANNEL_EVENT
     }
 
     private transient final EventType t;
@@ -40,15 +46,21 @@ public class InternalEvent {
      * @return true if is of type MESSAGE_EVENT; false otherwise
      */
     public final boolean isMessageEvent() {
-        return this.t == EventType.MESSAGE_EVENT;
+        return this.t == EventType.MESSAGE_IN_EVENT;
     }
 
     /**
      * Verifies if the event is a channel event
      * @return true if is of type CHANNEL_EVENT; false otherwise
      */
-    public final boolean isChannelEvent() {
-        return this.t == EventType.CHANNEL_EVENT;
+    public final boolean isCustomChannelEvent() {
+        return this.t == EventType.CUSTOM_CHANNEL_EVENT;
+    }
+    public final boolean isMessageSentEvent() {
+        return this.t == EventType.MESSAGE_SENT_EVENT;
+    }
+    public final boolean isMessageFailedEvent() {
+        return this.t == EventType.MESSAGE_FAILED_EVENT;
     }
 
     /**

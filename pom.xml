@@ -24,6 +24,14 @@
         </plugins>
     </build>
 
+    <dependencies>
+        <dependency>
+            <groupId>pt.unl.fct.di.novasys</groupId>
+            <artifactId>network-layer</artifactId>
+            <version>2.0.4-SNAPSHOT</version>
+        </dependency>
+    </dependencies>
+
     <distributionManagement>
         <repository>
             <id>asd19</id>
@@ -31,12 +39,4 @@
         </repository>
     </distributionManagement>
 
-    <dependencies>
-        <dependency>
-            <groupId>pt.unl.fct.di.novasys</groupId>
-            <artifactId>network-layer</artifactId>
-            <version>2.0.3-SNAPSHOT</version>
-        </dependency>
-
-    </dependencies>
 </project>
