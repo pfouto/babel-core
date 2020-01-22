@@ -179,10 +179,14 @@ public class Babel {
 
         int channelId = channelIdGenerator.incrementAndGet();
         ChannelToProtoForwarder forwarder = new ChannelToProtoForwarder(channelId);
-        forwarder.addConsumer(protoId, consumerProto);
         IChannel<AddressedMessage> newChannel = initializer.initialize(msgSerializer, forwarder, props);
         channelMap.put(channelId, Pair.of(newChannel, forwarder));
         return channelId;
+    }
+
+    public void registerChannelInterest(int channelId, short protoId, ChannelConsumer consumerProto){
+        ChannelToProtoForwarder forwarder = channelMap.get(channelId).getValue();
+        forwarder.addConsumer(protoId, consumerProto);
     }
 
     public int getSharedChannel(){

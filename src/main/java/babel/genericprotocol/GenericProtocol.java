@@ -210,10 +210,15 @@ public abstract class GenericProtocol implements ProtoConsumers {
 
     protected final int createChannel(String channelName, Properties props) throws IOException {
         int channelId = babel.createChannel(channelName, this.protoId, this, props);
+        registerSharedChannel(channelId);
+        return channelId;
+    }
+
+    protected final void registerSharedChannel(int channelId){
+        babel.registerChannelInterest(channelId, this.protoId, this);
         channels.put(channelId, new ChannelHandlers());
         if (defaultChannel == -1)
             setDefaultChannel(channelId);
-        return channelId;
     }
 
     protected final void setDefaultChannel(int channelId) {

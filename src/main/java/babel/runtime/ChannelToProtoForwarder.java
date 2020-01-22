@@ -20,18 +20,17 @@ public class ChannelToProtoForwarder implements ChannelListener<AddressedMessage
     }
 
     public void addConsumer(short protoId, ChannelConsumer consumer) {
-        if (consumers.putIfAbsent(protoId, consumer) != null) {
+        System.out.println("New consumer: " + protoId);
+        if (consumers.putIfAbsent(protoId, consumer) != null)
             throw new AssertionError("Consumer with protoId " + protoId + " already exists in channel");
-        }
     }
 
     @Override
     public void deliverMessage(AddressedMessage addressedMessage, Host host) {
         ChannelConsumer channelConsumer = consumers.get(addressedMessage.getDestProto());
-        if (channelConsumer == null) {
+        if (channelConsumer == null)
             throw new AssertionError("Channel " + channelId + " received message to protoId " +
                     addressedMessage.getDestProto() + " which is not registered in channel");
-        }
         channelConsumer.deliverMessageIn(new MessageInEvent(addressedMessage, host, channelId));
     }
 
