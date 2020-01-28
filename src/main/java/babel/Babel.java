@@ -180,38 +180,38 @@ public class Babel {
         return channelId;
     }
 
-    public void registerChannelInterest(int channelId, short protoId, ChannelConsumer consumerProto){
+    public void registerChannelInterest(int channelId, short protoId, ChannelConsumer consumerProto) {
         ChannelToProtoForwarder forwarder = channelMap.get(channelId).getValue();
         forwarder.addConsumer(protoId, consumerProto);
     }
 
-    public int getSharedChannel(){
+    public int getSharedChannel() {
         //TODO share channels somehow
         throw new NotImplementedException("Not implemented...");
     }
 
-    public void sendMessage(int channelId, ProtoMessage msg, Host target){
+    public void sendMessage(int channelId, int mode, ProtoMessage msg, Host target) {
         Pair<IChannel<ProtoMessage>, ChannelToProtoForwarder> channelPair = channelMap.get(channelId);
-        if(channelPair == null)
+        if (channelPair == null)
             throw new AssertionError("Sending message to non-existing channelId " + channelId);
-        channelPair.getKey().sendMessage(msg, target);
+        channelPair.getKey().sendMessage(msg, target, mode);
     }
 
-    public void closeConnection(int channelId, Host target){
+    public void closeConnection(int channelId, Host target) {
         Pair<IChannel<ProtoMessage>, ChannelToProtoForwarder> channelPair = channelMap.get(channelId);
-        if(channelPair == null)
+        if (channelPair == null)
             throw new AssertionError("Closing connection in non-existing channelId " + channelId);
         channelPair.getKey().closeConnection(target);
     }
 
-    public void registerSerializer(short msgCode, ISerializer<ProtoMessage> serializer) {
+    public void registerSerializer(short msgCode, ISerializer<? extends ProtoMessage> serializer) {
         msgSerializer.registerProtoSerializer(msgCode, serializer);
     }
 
     // ----------------------------- REQUEST / REPLY / NOTIFY
     public void sendIPC(IPCEvent ipc) throws NoSuchProtocolException {
         GenericProtocol gp = protocolMap.get(ipc.getDestinationID());
-        if (gp == null)throw new NoSuchProtocolException(ipc.getDestinationID());
+        if (gp == null) throw new NoSuchProtocolException(ipc.getDestinationID());
         gp.deliverIPC(ipc);
     }
 

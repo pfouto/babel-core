@@ -92,7 +92,7 @@ public abstract class GenericProtocol implements ProtoConsumers {
      *
      * @param props properties
      */
-    public abstract void init(Properties props) throws HandlerRegistrationException;
+    public abstract void init(Properties props) throws HandlerRegistrationException, IOException;
 
     /**
      * Start the execution thread of the protocol
@@ -150,7 +150,7 @@ public abstract class GenericProtocol implements ProtoConsumers {
     }
 
     protected final <V extends ChannelEvent> void registerChannelEventHandler(int cId, short eventId,
-                                                     ChannelEventHandler<V> handler)
+                                                                              ChannelEventHandler<V> handler)
             throws HandlerRegistrationException {
         registerHandler(eventId, handler, getChannelOrThrow(cId).channelEventHandlers);
     }
@@ -163,7 +163,7 @@ public abstract class GenericProtocol implements ProtoConsumers {
      * @throws HandlerRegistrationException if a handler for the timer timerID is already registered
      */
     protected final <V extends ProtoTimer> void registerTimerHandler(short timerID,
-                                              TimerHandler<V> handler)
+                                                                     TimerHandler<V> handler)
             throws HandlerRegistrationException {
         registerHandler(timerID, handler, timerHandlers);
     }
@@ -202,7 +202,7 @@ public abstract class GenericProtocol implements ProtoConsumers {
         return handlers;
     }
 
-    protected final void registerMessageSerializer(short msgId, ISerializer<ProtoMessage> serializer) {
+    protected final void registerMessageSerializer(short msgId, ISerializer<? extends ProtoMessage> serializer) {
         babel.registerSerializer(msgId, serializer);
     }
 
@@ -212,7 +212,7 @@ public abstract class GenericProtocol implements ProtoConsumers {
         return channelId;
     }
 
-    protected final void registerSharedChannel(int channelId){
+    protected final void registerSharedChannel(int channelId) {
         babel.registerChannelInterest(channelId, this.protoId, this);
         channels.put(channelId, new ChannelHandlers());
         if (defaultChannel == -1)
@@ -225,23 +225,35 @@ public abstract class GenericProtocol implements ProtoConsumers {
     }
 
     protected final void sendMessage(ProtoMessage msg, Host destination) {
-        sendMessage(msg, this.protoId, destination, defaultChannel);
+        sendMessage(defaultChannel, msg, this.protoId, destination, 0);
     }
 
-    protected final void sendMessage(ProtoMessage msg, Host destination, int channel) {
-        sendMessage(msg, this.protoId, destination, channel);
+    protected final void sendMessage(int channel, ProtoMessage msg, Host destination) {
+        sendMessage(channel, msg, this.protoId, destination, 0);
     }
 
     protected final void sendMessage(ProtoMessage msg, short destProto, Host destination) {
-        sendMessage(msg, destProto, destination, defaultChannel);
+        sendMessage(defaultChannel, msg, destProto, destination, 0);
     }
 
-    protected final void sendMessage(ProtoMessage msg, short destProto, Host destination, int channelId) {
+    protected final void sendMessage(ProtoMessage msg, Host destination, int mode) {
+        sendMessage(defaultChannel, msg, this.protoId, destination, mode);
+    }
+
+    protected final void sendMessage(int channel, ProtoMessage msg, Host destination, int mode) {
+        sendMessage(channel, msg, this.protoId, destination, mode);
+    }
+
+    protected final void sendMessage(ProtoMessage msg, short destProto, Host destination, int mode) {
+        sendMessage(defaultChannel, msg, destProto, destination, mode);
+    }
+
+    protected final void sendMessage(int channelId, ProtoMessage msg, short destProto, Host destination, int mode) {
         getChannelOrThrow(channelId);
         logger.debug("Sending: " + msg + " to " + destination + " proto " + destProto + " channel " + channelId);
         msg.destProto = destProto;
         msg.sourceProto = this.protoId;
-        babel.sendMessage(channelId, msg, destination);
+        babel.sendMessage(channelId, mode, msg, destination);
     }
 
     protected final void closeConnection(Host peer) {

@@ -8,13 +8,13 @@ import java.util.Map;
 
 public class BaseProtoMessageSerializer implements ISerializer<ProtoMessage> {
 
-    Map<Short, ISerializer<ProtoMessage>> serializers;
+    Map<Short, ISerializer<? extends ProtoMessage>> serializers;
 
-    public BaseProtoMessageSerializer(Map<Short, ISerializer<ProtoMessage>> serializers){
+    public BaseProtoMessageSerializer(Map<Short, ISerializer<? extends ProtoMessage>> serializers) {
         this.serializers = serializers;
     }
 
-    public void registerProtoSerializer(short msgCode, ISerializer<ProtoMessage> protoSerializer){
+    public void registerProtoSerializer(short msgCode, ISerializer<? extends ProtoMessage> protoSerializer) {
         if (serializers.putIfAbsent(msgCode, protoSerializer) != null)
             throw new AssertionError("Trying to re-register serializer in Babel" + msgCode);
     }
@@ -24,7 +24,8 @@ public class BaseProtoMessageSerializer implements ISerializer<ProtoMessage> {
         byteBuf.writeShort(msg.sourceProto);
         byteBuf.writeShort(msg.destProto);
         byteBuf.writeShort(msg.getId());
-        serializers.get(msg.getId()).serialize(msg, byteBuf);
+        ISerializer iSerializer = serializers.get(msg.getId());
+        iSerializer.serialize(msg, byteBuf);
     }
 
     @Override
