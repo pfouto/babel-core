@@ -30,6 +30,18 @@ public class TimerEvent extends InternalEvent implements Comparable<TimerEvent>,
         return timer;
     }
 
+    @Override
+    public String toString() {
+        return "TimerEvent{" +
+                "uuid=" + uuid +
+                ", timer=" + timer +
+                ", consumer=" + consumer +
+                ", triggerTime=" + triggerTime +
+                ", periodic=" + periodic +
+                ", period=" + period +
+                '}';
+    }
+
     public long getUuid() {
         return uuid;
     }
