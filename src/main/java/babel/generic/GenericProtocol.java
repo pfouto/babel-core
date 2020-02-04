@@ -46,14 +46,19 @@ public abstract class GenericProtocol implements ProtoConsumers {
     private static Babel babel = Babel.getInstance();
 
     /**
-     * Create a generic protocol with the provided name and numeric identifier
-     * and network service
+     * Creates a generic protocol with the provided name and numeric identifier
+     * and the given event queue policy.
      *
-     * @param protoName name of the protocol
-     * @param protoId   numeric identifier
+     * Event queue policies can be defined to specify handling events in desired orders:
+     * Eg. If multiple events are inside the queue, then timers are always processes first
+     * than any other event in the queue.
+     *
+     * @param protoName the protocol name
+     * @param protoId the protocol numeric identifier
+     * @param policy the queue policy to use
      */
-    public GenericProtocol(String protoName, short protoId) {
-        this.queue = new LinkedBlockingQueue<>();
+    public GenericProtocol(String protoName, short protoId, BlockingQueue<InternalEvent> policy) {
+        this.queue = policy;
         this.protoId = protoId;
         this.protoName = protoName;
 
@@ -67,6 +72,19 @@ public abstract class GenericProtocol implements ProtoConsumers {
         this.requestHandlers = new HashMap<>();
         this.replyHandlers = new HashMap<>();
         this.notificationHandlers = new HashMap<>();
+    }
+
+    /**
+     * Create a generic protocol with the provided name and numeric identifier
+     * and network service
+     *
+     * The internal event queue is defined to have a FIFO policy on all events
+     *
+     * @param protoName name of the protocol
+     * @param protoId   numeric identifier
+     */
+    public GenericProtocol(String protoName, short protoId) {
+        this(protoName, protoId, new LinkedBlockingQueue<>());
     }
 
     /**
