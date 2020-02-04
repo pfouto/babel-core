@@ -13,7 +13,7 @@ public class AckosChannelInitializer implements ChannelInitializer<AckosChannel<
     @Override
     public AckosChannel<ProtoMessage> initialize(ISerializer<ProtoMessage> serializer,
                                                      ChannelListener<ProtoMessage> list,
-                                                     Properties properties) throws UnknownHostException {
+                                                     Properties properties, short protoId) throws UnknownHostException {
         return new AckosChannel<>(serializer, list, properties);
     }
 }

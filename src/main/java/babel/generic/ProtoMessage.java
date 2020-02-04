@@ -13,4 +13,12 @@ public abstract class ProtoMessage {
     public short getId() {
         return id;
     }
+
+    public short getDestProto() {
+        return destProto;
+    }
+
+    public short getSourceProto() {
+        return sourceProto;
+    }
 }

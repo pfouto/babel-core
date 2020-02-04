@@ -13,7 +13,7 @@ public class ServerChannelInitializer implements ChannelInitializer<SimpleServer
     @Override
     public SimpleServerChannel<ProtoMessage> initialize(ISerializer<ProtoMessage> serializer,
                                                         ChannelListener<ProtoMessage> list,
-                                                        Properties properties) throws UnknownHostException {
+                                                        Properties properties, short protoId) throws UnknownHostException {
         return new SimpleServerChannel<>(serializer, list, properties);
     }
 }

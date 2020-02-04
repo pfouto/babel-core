@@ -11,5 +11,5 @@ import java.util.Properties;
 public interface ChannelInitializer<T extends IChannel<ProtoMessage>> {
 
     T initialize(ISerializer<ProtoMessage> serializer, ChannelListener<ProtoMessage> list,
-                 Properties properties) throws IOException;
+                 Properties properties, short protoId) throws IOException;
 }

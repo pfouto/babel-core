@@ -196,7 +196,7 @@ public class Babel {
 
         int channelId = channelIdGenerator.incrementAndGet();
         ChannelToProtoForwarder forwarder = new ChannelToProtoForwarder(channelId);
-        IChannel<ProtoMessage> newChannel = initializer.initialize(msgSerializer, forwarder, props);
+        IChannel<ProtoMessage> newChannel = initializer.initialize(msgSerializer, forwarder, props, protoId);
         channelMap.put(channelId, Pair.of(newChannel, forwarder));
         return channelId;
     }
@@ -218,11 +218,11 @@ public class Babel {
         channelPair.getKey().sendMessage(msg, target, mode);
     }
 
-    public void closeConnection(int channelId, Host target) {
+    public void closeConnection(int channelId, Host target, int connection) {
         Pair<IChannel<ProtoMessage>, ChannelToProtoForwarder> channelPair = channelMap.get(channelId);
         if (channelPair == null)
             throw new AssertionError("Closing connection in non-existing channelId " + channelId);
-        channelPair.getKey().closeConnection(target);
+        channelPair.getKey().closeConnection(target, connection);
     }
 
     public void registerSerializer(short msgCode, ISerializer<? extends ProtoMessage> serializer) {

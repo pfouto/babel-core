@@ -279,8 +279,12 @@ public abstract class GenericProtocol implements ProtoConsumers {
     }
 
     protected final void closeConnection(Host peer, int channelId) {
+        closeConnection(peer, channelId, protoId);
+    }
+
+    protected final void closeConnection(Host peer, int channelId, int connection) {
         getChannelOrThrow(channelId);
-        babel.closeConnection(channelId, peer);
+        babel.closeConnection(channelId, peer, connection);
     }
 
     /* ------------------ IPC BABEL PROXY -------------------------------------------------*/
