@@ -167,6 +167,27 @@ public class Babel {
     }
 
     // ----------------------------- NETWORK
+
+    /**
+     * Registers a new channel in babel
+     * @param channelName the channel name
+     * @param channelInitializer the channel initializer
+     */
+    public void registerChannelInitialized(String channelName, ChannelInitializer<? extends IChannel<?>> channelInitializer) {
+        if((channelInitializer = initializers.putIfAbsent(channelName, channelInitializer)) != null) {
+            throw new IllegalArgumentException("Channel with name " + channelName + " already as an initialized " + channelInitializer);
+        }
+    }
+
+    /**
+     * Creates a channel for a protocol
+     * @param channelName the channel name
+     * @param protoId the protocol numeric identifier
+     * @param consumerProto ???
+     * @param props the properties required by the channel
+     * @return the channel Id
+     * @throws IOException if channel creation fails
+     */
     public int createChannel(String channelName, short protoId, ChannelConsumer consumerProto, Properties props)
             throws IOException {
         ChannelInitializer<? extends IChannel<?>> initializer = initializers.get(channelName);
