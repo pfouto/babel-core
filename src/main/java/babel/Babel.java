@@ -173,7 +173,7 @@ public class Babel {
      * @param channelName the channel name
      * @param channelInitializer the channel initializer
      */
-    public void registerChannelInitialized(String channelName, ChannelInitializer<? extends IChannel<?>> channelInitializer) {
+    public void registerChannelInitializer(String channelName, ChannelInitializer<? extends IChannel<ProtoMessage>> channelInitializer) {
         if((channelInitializer = initializers.putIfAbsent(channelName, channelInitializer)) != null) {
             throw new IllegalArgumentException("Channel with name " + channelName + " already as an initialized " + channelInitializer);
         }
