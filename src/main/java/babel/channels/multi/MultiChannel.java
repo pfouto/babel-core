@@ -2,6 +2,7 @@ package babel.channels.multi;
 
 import babel.generic.ProtoMessage;
 import channel.ChannelListener;
+import channel.IChannel;
 import channel.base.SingleThreadedBiChannel;
 import network.AttributeValidator;
 import network.Connection;
