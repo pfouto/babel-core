@@ -310,7 +310,7 @@ public abstract class GenericProtocol implements ProtoConsumers {
     }
 
     // ------------------------------ NOTIFICATION BABEL PROXY ---------------------------------
-    protected final void subscribeNotification(short nId, NotificationHandler<?> h)
+    protected final <V extends ProtoNotification> void subscribeNotification(short nId, NotificationHandler<V> h)
             throws HandlerRegistrationException {
         registerHandler(nId, h, notificationHandlers);
         babel.subscribeNotification(nId, this);
