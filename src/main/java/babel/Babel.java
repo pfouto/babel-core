@@ -315,7 +315,8 @@ public class Babel {
     public Properties loadConfig(String propsFilename, String[] args)
             throws IOException, InvalidParameterException {
         Properties configuration = new Properties();
-        configuration.load(new FileInputStream(propsFilename));
+        if(propsFilename != null)
+            configuration.load(new FileInputStream(propsFilename));
         //Override with launch parameter props
         for (String arg : args) {
             String[] property = arg.split("=");
