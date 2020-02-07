@@ -9,9 +9,9 @@ import network.ISerializer;
 import java.io.IOException;
 import java.util.Properties;
 
-public class MultiChannelInitializer implements ChannelInitializer {
+public class MultiChannelInitializer implements ChannelInitializer<IChannel<ProtoMessage>> {
     @Override
-    public IChannel<ProtoMessage> initialize(ISerializer serializer, ChannelListener list, Properties properties,
+    public MultiChannel initialize(ISerializer serializer, ChannelListener list, Properties properties,
                                              short protoId) throws IOException {
         return MultiChannel.getInstance(serializer, list, protoId, properties);
     }
