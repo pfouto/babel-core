@@ -463,7 +463,7 @@ public abstract class GenericProtocol implements ProtoConsumers {
         if (h != null)
             h.handleEvent(m.getEvent(), m.getChannelId());
         else
-            logger.warn("Discarding channel event (id " + m.getChannelId() + "): " + m);
+            logger.debug("Discarding channel event (id " + m.getChannelId() + "): " + m);
     }
 
     private void handleTimer(TimerEvent t) {
@@ -479,7 +479,7 @@ public abstract class GenericProtocol implements ProtoConsumers {
         if (h != null)
             h.uponNotification(n.getNotification(), n.getEmitterID());
         else
-            logger.warn("Discarding unexpected notification (id " + n.getNotification().getId() + "): " + n);
+            logger.debug("Discarding unexpected notification (id " + n.getNotification().getId() + "): " + n);
     }
 
     private void handleRequest(ProtoRequest r, short from) {

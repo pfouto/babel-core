@@ -20,7 +20,6 @@ public class ChannelToProtoForwarder implements ChannelListener<ProtoMessage> {
     }
 
     public void addConsumer(short protoId, ChannelConsumer consumer) {
-        System.out.println("New consumer: " + protoId);
         if (consumers.putIfAbsent(protoId, consumer) != null)
             throw new AssertionError("Consumer with protoId " + protoId + " already exists in channel");
     }
