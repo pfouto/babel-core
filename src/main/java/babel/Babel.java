@@ -170,21 +170,23 @@ public class Babel {
 
     /**
      * Registers a new channel in babel
-     * @param channelName the channel name
+     *
+     * @param channelName        the channel name
      * @param channelInitializer the channel initializer
      */
     public void registerChannelInitializer(String channelName, ChannelInitializer<? extends IChannel<ProtoMessage>> channelInitializer) {
-        if((channelInitializer = initializers.putIfAbsent(channelName, channelInitializer)) != null) {
+        if ((channelInitializer = initializers.putIfAbsent(channelName, channelInitializer)) != null) {
             throw new IllegalArgumentException("Channel with name " + channelName + " already as an initialized " + channelInitializer);
         }
     }
 
     /**
      * Creates a channel for a protocol
-     * @param channelName the channel name
-     * @param protoId the protocol numeric identifier
+     *
+     * @param channelName   the channel name
+     * @param protoId       the protocol numeric identifier
      * @param consumerProto ???
-     * @param props the properties required by the channel
+     * @param props         the properties required by the channel
      * @return the channel Id
      * @throws IOException if channel creation fails
      */
@@ -232,7 +234,15 @@ public class Babel {
     // ----------------------------- REQUEST / REPLY / NOTIFY
     public void sendIPC(IPCEvent ipc) throws NoSuchProtocolException {
         GenericProtocol gp = protocolMap.get(ipc.getDestinationID());
-        if (gp == null) throw new NoSuchProtocolException(ipc.getDestinationID());
+        if (gp == null) {
+            StringBuilder sb = new StringBuilder();
+            sb.append(ipc.getDestinationID()).append(" not executing.");
+            sb.append("Executing protocols: [");
+            protocolMap.forEach((id, p) -> sb.append(id).append(" - ").append(p.getProtoName()).append(", "));
+            sb.append("]");
+            throw new NoSuchProtocolException(sb.toString());
+            //throw new NoSuchProtocolException(ipc.getDestinationID());
+        }
         gp.deliverIPC(ipc);
     }
 
@@ -315,7 +325,7 @@ public class Babel {
     public Properties loadConfig(String propsFilename, String[] args)
             throws IOException, InvalidParameterException {
         Properties configuration = new Properties();
-        if(propsFilename != null)
+        if (propsFilename != null)
             configuration.load(new FileInputStream(propsFilename));
         //Override with launch parameter props
         for (String arg : args) {
