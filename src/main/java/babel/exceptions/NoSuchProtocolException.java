@@ -1,6 +1,6 @@
 package babel.exceptions;
 
-public class NoSuchProtocolException extends Exception {
+public class NoSuchProtocolException extends RuntimeException {
 
     public NoSuchProtocolException(short protoId) { super(protoId + " not executing.");}
     public NoSuchProtocolException(short protoId, Throwable cause) { super(protoId + " not executing.", cause);}
