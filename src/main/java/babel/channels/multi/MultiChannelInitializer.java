@@ -11,8 +11,8 @@ import java.util.Properties;
 
 public class MultiChannelInitializer implements ChannelInitializer<IChannel<ProtoMessage>> {
     @Override
-    public MultiChannel initialize(ISerializer serializer, ChannelListener list, Properties properties,
-                                             short protoId) throws IOException {
+    public MultiChannel initialize(ISerializer<ProtoMessage> serializer, ChannelListener<ProtoMessage> list,
+                                   Properties properties, short protoId) throws IOException {
         return MultiChannel.getInstance(serializer, list, protoId, properties);
     }
 }

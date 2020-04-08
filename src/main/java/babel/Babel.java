@@ -112,6 +112,7 @@ public class Babel {
         initializers.put("SimpleClient", new ClientChannelInitializer());
         initializers.put("SimpleServer", new ServerChannelInitializer());
         initializers.put("TCP", new TCPChannelInitializer());
+        initializers.put("MultithreadedTCP", new MultithreadedTCPChannelInitializer());
     }
 
     private void timerLoop() {
@@ -225,6 +226,13 @@ public class Babel {
         if (channelPair == null)
             throw new AssertionError("Closing connection in non-existing channelId " + channelId);
         channelPair.getKey().closeConnection(target, connection);
+    }
+
+    public void openConnection(int channelId, Host target) {
+        Pair<IChannel<ProtoMessage>, ChannelToProtoForwarder> channelPair = channelMap.get(channelId);
+        if (channelPair == null)
+            throw new AssertionError("Opening connection in non-existing channelId " + channelId);
+        channelPair.getKey().openConnection(target);
     }
 
     public void registerSerializer(short msgCode, ISerializer<? extends ProtoMessage> serializer) {

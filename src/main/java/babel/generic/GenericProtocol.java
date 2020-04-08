@@ -48,14 +48,14 @@ public abstract class GenericProtocol implements ProtoConsumers {
     /**
      * Creates a generic protocol with the provided name and numeric identifier
      * and the given event queue policy.
-     *
+     * <p>
      * Event queue policies can be defined to specify handling events in desired orders:
      * Eg. If multiple events are inside the queue, then timers are always processes first
      * than any other event in the queue.
      *
      * @param protoName the protocol name
-     * @param protoId the protocol numeric identifier
-     * @param policy the queue policy to use
+     * @param protoId   the protocol numeric identifier
+     * @param policy    the queue policy to use
      */
     public GenericProtocol(String protoName, short protoId, BlockingQueue<InternalEvent> policy) {
         this.queue = policy;
@@ -77,7 +77,7 @@ public abstract class GenericProtocol implements ProtoConsumers {
     /**
      * Create a generic protocol with the provided name and numeric identifier
      * and network service
-     *
+     * <p>
      * The internal event queue is defined to have a FIFO policy on all events
      *
      * @param protoName name of the protocol
@@ -274,6 +274,14 @@ public abstract class GenericProtocol implements ProtoConsumers {
         babel.sendMessage(channelId, mode, msg, destination);
     }
 
+    protected final void openConnection(Host peer) {
+        openConnection(peer, defaultChannel);
+    }
+
+    protected final void openConnection(Host peer, int channelId) {
+        babel.openConnection(channelId, peer);
+    }
+
     protected final void closeConnection(Host peer) {
         closeConnection(peer, defaultChannel);
     }
@@ -283,7 +291,6 @@ public abstract class GenericProtocol implements ProtoConsumers {
     }
 
     protected final void closeConnection(Host peer, int channelId, int connection) {
-        getChannelOrThrow(channelId);
         babel.closeConnection(channelId, peer, connection);
     }
 
