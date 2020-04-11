@@ -1,18 +1,27 @@
 package babel;
 
+import babel.events.*;
+import babel.exceptions.NoSuchProtocolException;
 import babel.exceptions.InvalidParameterException;
 import babel.exceptions.ProtocolAlreadyExistsException;
-import babel.protocol.GenericProtocol;
-import babel.timer.ITimerConsumer;
-import babel.timer.ProtocolTimer;
-import network.INetwork;
-import network.NetworkService;
+import babel.generic.*;
+import babel.initializers.*;
+import babel.events.consumers.ChannelConsumer;
+import babel.events.consumers.NotificationConsumer;
+import babel.events.consumers.TimerConsumer;
+import channel.IChannel;
+import network.ISerializer;
+import network.data.Host;
+import org.apache.commons.lang3.NotImplementedException;
+import org.apache.commons.lang3.tuple.Pair;
 
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.PriorityBlockingQueue;
-
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * The Babel class provides applications with a Runtime that supports
@@ -44,267 +53,296 @@ import java.util.concurrent.PriorityBlockingQueue;
  *
  *         //Application Logic
  *
- *</pre>
- *
+ * </pre>
+ * <p>
  * For more information on protocol implementation with Babel:
- * @see babel.protocol.GenericProtocol
+ *
+ * @see GenericProtocol
  */
 public class Babel {
 
     private static Babel system;
 
-    private Map<Short, GenericProtocol> protocolMap;
-    private Map<String, GenericProtocol> protocolByNameMap;
-
-    private Map<UUID,QueuedTimer> allTimers;
-    private PriorityBlockingQueue<QueuedTimer> timerQueue;
-    private Thread worker;
-
-    private INetwork network;
-
-    private Properties configuration;
-
     /**
      * Returns the instance of the Babel Runtime
+     *
      * @return the Babel instance
      */
     public static synchronized Babel getInstance() {
-        if(system == null)
+        if (system == null)
             system = new Babel();
         return system;
     }
 
+    //Protocols
+    private Map<Short, GenericProtocol> protocolMap;
+    private Map<String, GenericProtocol> protocolByNameMap;
+    private Map<Short, Set<NotificationConsumer>> subscribers;
+
+    //Timers
+    private Map<Long, TimerEvent> allTimers;
+    private PriorityBlockingQueue<TimerEvent> timerQueue;
+    private Thread timersThread;
+    private AtomicLong timersCounter;
+
+    //Channels
+    private Map<String, ChannelInitializer<? extends IChannel<ProtoMessage>>> initializers;
+    private BaseProtoMessageSerializer msgSerializer;
+    private Map<Integer, Pair<IChannel<ProtoMessage>, ChannelToProtoForwarder>> channelMap;
+    private AtomicInteger channelIdGenerator;
+
     private Babel() {
-        this.protocolMap = new HashMap<>();
-        this.protocolByNameMap = new HashMap<>();
+        //Protocols
+        this.protocolMap = new ConcurrentHashMap<>();
+        this.protocolByNameMap = new ConcurrentHashMap<>();
+        this.subscribers = new ConcurrentHashMap<>();
+
+        //Timers
         allTimers = new HashMap<>();
         timerQueue = new PriorityBlockingQueue<>();
-        worker = new Thread(() -> {
-            while(true){
-                long now = System.currentTimeMillis();
-                QueuedTimer qT = timerQueue.peek();
-                long toSleep;
-                if(qT != null)
-                    toSleep = qT.triggerTime - now;
-                else
-                    toSleep = Long.MAX_VALUE;
+        timersCounter = new AtomicLong();
+        timersThread = new Thread(this::timerLoop);
 
-                if(toSleep <= 0){
-                    QueuedTimer t = timerQueue.poll();
-                    //Deliver
-                    t.getProtocol().deliverTimer((ProtocolTimer) t.getEvent().clone());
-                    if(t.isPeriodic()) {
-                        t.setTriggerTime(now + t.getPeriod());
-                        timerQueue.add(t);
-                    }
-                } else {
-                    try {
-                        Thread.sleep(toSleep);
-                    } catch (InterruptedException e) {
-                        //
-                    }
+        //Channels
+        channelMap = new ConcurrentHashMap<>();
+        channelIdGenerator = new AtomicInteger(0);
+        msgSerializer = new BaseProtoMessageSerializer(new ConcurrentHashMap<>());
+        this.initializers = new ConcurrentHashMap<>();
+        initializers.put("Ackos", new AckosChannelInitializer());
+        initializers.put("SimpleClient", new ClientChannelInitializer());
+        initializers.put("SimpleServer", new ServerChannelInitializer());
+        initializers.put("TCP", new TCPChannelInitializer());
+        initializers.put("MultithreadedTCP", new MultithreadedTCPChannelInitializer());
+    }
+
+    private void timerLoop() {
+        while (true) {
+            long now = System.currentTimeMillis();
+            TimerEvent tE = timerQueue.peek();
+
+            long toSleep = tE != null ? tE.getTriggerTime() - now : Long.MAX_VALUE;
+
+            if (toSleep <= 0) {
+                TimerEvent t = timerQueue.remove();
+                //Deliver
+                t.getConsumer().deliverTimer(t);
+                if (t.isPeriodic()) {
+                    t.setTriggerTime(now + t.getPeriod());
+                    timerQueue.add(t);
+                }
+            } else {
+                try {
+                    Thread.sleep(toSleep);
+                } catch (InterruptedException ignored) {
                 }
             }
-        });
-    }
-
-    /**
-     * Register a protocol in Babel
-     * @param protocol the protocol to registered
-     * @throws ProtocolAlreadyExistsException if a protocol with the same id or name has already been registered in Babel
-     */
-    public void registerProtocol(GenericProtocol protocol) throws ProtocolAlreadyExistsException {
-        if(protocolMap.containsKey(protocol.getProtoId()))
-            throw new ProtocolAlreadyExistsException("Protocol conflicts on id with protocol: id=" + protocol.getProtoId() + ":name=" + protocolMap.get(protocol.getProtoId()).getProtoName());
-        if(protocolByNameMap.containsKey(protocol.getProtoName()))
-            throw new ProtocolAlreadyExistsException("Protocol conflicts on name: " + protocol.getProtoName() + " (id: " + this.protocolByNameMap.get(protocol.getProtoName()).getProtoId()+ ")");
-
-        this.protocolMap.put(protocol.getProtoId(), protocol);
-        this.protocolByNameMap.put(protocol.getProtoName(), protocol);
-    }
-
-    /**
-     * Returns the protocol registered in Babel with the name provided
-     * @param name the name of the protocol
-     * @return the protocol or null if it is not registered
-     */
-    public GenericProtocol getProtocolByName(String name) {
-        GenericProtocol gp = this.protocolByNameMap.get(name);
-        return gp;
-    }
-
-    /**
-     * Returns the protocol registered in Babel with the id provided
-     * @param id the numeric identifier of the protocol
-     * @return the protocol or null if it is not registered
-     */
-    public GenericProtocol getProtocol(short id) {
-        GenericProtocol gp = protocolMap.get(id);
-        return gp;
-    }
-
-    /**
-     * Returns the name of the protocol register in Babel with the id provided
-     * @param id the numeric identifier of the protocol
-     * @return the protocol name or null if the protocol is not registered
-     */
-    public String getProtocolName(short id) {
-        GenericProtocol gp = protocolMap.get(id);
-        if(gp != null)
-            return gp.getProtoName();
-        else
-            return null;
+        }
     }
 
     /**
      * Begins the execution of all protocols registered in Babel
      */
-    public void start(){
-        worker.start();
-        for(GenericProtocol gp: protocolMap.values())
-            gp.start();
+    public void start() {
+        timersThread.start();
+        protocolMap.values().forEach(GenericProtocol::start);
     }
 
+    /**
+     * Register a protocol in Babel
+     *
+     * @param p the protocol to registered
+     * @throws ProtocolAlreadyExistsException if a protocol with the same id or name has already been registered in Babel
+     */
+    public void registerProtocol(GenericProtocol p) throws ProtocolAlreadyExistsException {
+        GenericProtocol old = protocolMap.putIfAbsent(p.getProtoId(), p);
+        if (old != null) throw new ProtocolAlreadyExistsException(
+                "Protocol conflicts on id with protocol: id=" + p.getProtoId() + ":name=" + protocolMap.get(
+                        p.getProtoId()).getProtoName());
+        old = protocolByNameMap.putIfAbsent(p.getProtoName(), p);
+        if (old != null) {
+            protocolMap.remove(p.getProtoId());
+            throw new ProtocolAlreadyExistsException(
+                    "Protocol conflicts on name: " + p.getProtoName() + " (id: " + this.protocolByNameMap.get(
+                            p.getProtoName()).getProtoId() + ")");
+        }
+    }
+
+    // ----------------------------- NETWORK
+
+    /**
+     * Registers a new channel in babel
+     *
+     * @param channelName        the channel name
+     * @param channelInitializer the channel initializer
+     */
+    public void registerChannelInitializer(String channelName, ChannelInitializer<? extends IChannel<ProtoMessage>> channelInitializer) {
+        if ((channelInitializer = initializers.putIfAbsent(channelName, channelInitializer)) != null) {
+            throw new IllegalArgumentException("Channel with name " + channelName + " already as an initialized " + channelInitializer);
+        }
+    }
+
+    /**
+     * Creates a channel for a protocol
+     *
+     * @param channelName   the channel name
+     * @param protoId       the protocol numeric identifier
+     * @param consumerProto ???
+     * @param props         the properties required by the channel
+     * @return the channel Id
+     * @throws IOException if channel creation fails
+     */
+    public int createChannel(String channelName, short protoId, ChannelConsumer consumerProto, Properties props)
+            throws IOException {
+        ChannelInitializer<? extends IChannel<?>> initializer = initializers.get(channelName);
+        if (initializer == null)
+            throw new IllegalArgumentException("Channel initializer not registered: " + channelName);
+
+        int channelId = channelIdGenerator.incrementAndGet();
+        ChannelToProtoForwarder forwarder = new ChannelToProtoForwarder(channelId);
+        IChannel<ProtoMessage> newChannel = initializer.initialize(msgSerializer, forwarder, props, protoId);
+        channelMap.put(channelId, Pair.of(newChannel, forwarder));
+        return channelId;
+    }
+
+    public void registerChannelInterest(int channelId, short protoId, ChannelConsumer consumerProto) {
+        ChannelToProtoForwarder forwarder = channelMap.get(channelId).getValue();
+        forwarder.addConsumer(protoId, consumerProto);
+    }
+
+    public int getSharedChannel() {
+        //TODO share channels somehow
+        throw new NotImplementedException("Not implemented...");
+    }
+
+    public void sendMessage(int channelId, int mode, ProtoMessage msg, Host target) {
+        Pair<IChannel<ProtoMessage>, ChannelToProtoForwarder> channelPair = channelMap.get(channelId);
+        if (channelPair == null)
+            throw new AssertionError("Sending message to non-existing channelId " + channelId);
+        channelPair.getKey().sendMessage(msg, target, mode);
+    }
+
+    public void closeConnection(int channelId, Host target, int connection) {
+        Pair<IChannel<ProtoMessage>, ChannelToProtoForwarder> channelPair = channelMap.get(channelId);
+        if (channelPair == null)
+            throw new AssertionError("Closing connection in non-existing channelId " + channelId);
+        channelPair.getKey().closeConnection(target, connection);
+    }
+
+    public void openConnection(int channelId, Host target) {
+        Pair<IChannel<ProtoMessage>, ChannelToProtoForwarder> channelPair = channelMap.get(channelId);
+        if (channelPair == null)
+            throw new AssertionError("Opening connection in non-existing channelId " + channelId);
+        channelPair.getKey().openConnection(target);
+    }
+
+    public void registerSerializer(short msgCode, ISerializer<? extends ProtoMessage> serializer) {
+        msgSerializer.registerProtoSerializer(msgCode, serializer);
+    }
+
+    // ----------------------------- REQUEST / REPLY / NOTIFY
+    public void sendIPC(IPCEvent ipc) throws NoSuchProtocolException {
+        GenericProtocol gp = protocolMap.get(ipc.getDestinationID());
+        if (gp == null) {
+            StringBuilder sb = new StringBuilder();
+            sb.append(ipc.getDestinationID()).append(" not executing.");
+            sb.append("Executing protocols: [");
+            protocolMap.forEach((id, p) -> sb.append(id).append(" - ").append(p.getProtoName()).append(", "));
+            sb.append("]");
+            throw new NoSuchProtocolException(sb.toString());
+            //throw new NoSuchProtocolException(ipc.getDestinationID());
+        }
+        gp.deliverIPC(ipc);
+    }
+
+    public void subscribeNotification(short nId, NotificationConsumer consumer) {
+        subscribers.computeIfAbsent(nId, k -> ConcurrentHashMap.newKeySet()).add(consumer);
+    }
+
+    public void unsubscribeNotification(short nId, NotificationConsumer consumer) {
+        subscribers.getOrDefault(nId, Collections.emptySet()).remove(consumer);
+    }
+
+    public void triggerNotification(NotificationEvent n) {
+        for (NotificationConsumer c : subscribers.getOrDefault(n.getNotification().getId(), Collections.emptySet())) {
+            c.deliverNotification(n);
+        }
+    }
+    // ---------------------------- TIMERS
 
     /**
      * Setups a periodic timer to be monitored by Babel
-     * @param consumerProtocol the protocol that setup the periodic timer
-     * @param timer the timer event to be monitored
-     * @param firstNotification the amount of time until the first trigger of the timer event
-     * @param period the periodicity of the timer event
-     * @return the unique id of the timer event setup
+     *
+     * @param consumer the protocol that setup the periodic timer
+     * @param first    the amount of time until the first trigger of the timer event
+     * @param period   the periodicity of the timer event
      */
-    public UUID setupPeriodicTimer(ITimerConsumer consumerProtocol, ProtocolTimer timer, long firstNotification, long period) {
-        if(allTimers.containsKey(timer.getUuid()))
-            return null;
-        QueuedTimer qt = new QueuedTimer(System.currentTimeMillis() + firstNotification, period, true, timer, consumerProtocol);
-        allTimers.put(timer.getUuid(), qt);
-        timerQueue.add(qt);
-        worker.interrupt();
-        return timer.getUuid();
+    public long setupPeriodicTimer(ProtoTimer t, TimerConsumer consumer, long first, long period) {
+        long id = timersCounter.incrementAndGet();
+        timerQueue.add(new TimerEvent(t, id, consumer,
+                System.currentTimeMillis() + first, true, period));
+        timersThread.interrupt();
+        return id;
     }
 
     /**
      * Setups a timer to be monitored by Babel
-     * @param consumerProtocol the protocol that setup the timer
-     * @param timer the timer event to be monitored
-     * @param timeout the amount of time until the timer event is triggered
-     * @return the unique id of the timer event setup
+     *
+     * @param consumer the protocol that setup the timer
+     * @param timeout  the amount of time until the timer event is triggered
      */
-    public UUID setupTimer(ITimerConsumer consumerProtocol, ProtocolTimer timer, long timeout) {
-        if(allTimers.containsKey(timer.getUuid()))
-            return null;
-        QueuedTimer qt = new QueuedTimer(System.currentTimeMillis() + timeout, -1, false, timer, consumerProtocol);
-        allTimers.put(timer.getUuid(), qt);
-        timerQueue.add(qt);
-        worker.interrupt();
-        return timer.getUuid();
+    public long setupTimer(ProtoTimer t, TimerConsumer consumer, long timeout) {
+        long id = timersCounter.incrementAndGet();
+        TimerEvent newTimer = new TimerEvent(t, id, consumer,
+                System.currentTimeMillis() + timeout, false, -1);
+        timerQueue.add(newTimer);
+        allTimers.put(newTimer.getUuid(), newTimer);
+        timersThread.interrupt();
+        return id;
     }
 
     /**
      * Cancels a timer that was being monitored by Babel
      * Babel will forget that the timer exists
+     *
      * @param timerID the unique id of the timer event to be canceled
      * @return the timer event or null if it was not being monitored by Babel
      */
-    public ProtocolTimer cancelTimer(UUID timerID) {
-        if(!allTimers.containsKey(timerID)) {
+    public ProtoTimer cancelTimer(long timerID) {
+        TimerEvent tE = allTimers.remove(timerID);
+        if (tE == null)
             return null;
-        }
-        timerQueue.remove(allTimers.get(timerID));
-        ProtocolTimer t = allTimers.remove(timerID).getEvent();
-        worker.interrupt();
-        return t;
+        timerQueue.remove(tE);
+        timersThread.interrupt(); //TODO is this needed?
+        return tE.getTimer();
     }
+
+    // ---------------------------- CONFIG
 
     /**
      * Reads the provided properties files and builds a configuration
      * Console parameters override or add properties in the provided file
-     *
+     * <p>
      * properties should be provided as:   propertyName=value
      *
      * @param propsFilename the path to the properties file
-     * @param args console parameters
+     * @param args          console parameters
      * @return the configurations built
-     * @throws IOException if the provided file does not exist
+     * @throws IOException               if the provided file does not exist
      * @throws InvalidParameterException if the console parameters are not in the format: prop=value
      */
-    public Properties loadConfig(String propsFilename, String[] args) throws IOException, InvalidParameterException {
-        configuration = new Properties();
-        configuration.load(new FileInputStream(propsFilename));
+    public Properties loadConfig(String propsFilename, String[] args)
+            throws IOException, InvalidParameterException {
+        Properties configuration = new Properties();
+        if (propsFilename != null)
+            configuration.load(new FileInputStream(propsFilename));
         //Override with launch parameter props
-        for (int i = 0; i < args.length; i++) {
-            String arg = args[i];
+        for (String arg : args) {
             String[] property = arg.split("=");
             if (property.length == 2)
                 configuration.setProperty(property[0], property[1]);
             else
                 throw new InvalidParameterException("Unknown parameter: " + arg);
         }
-        return this.configuration;
-    }
-
-    /**
-     * Returns the instance of the network layer
-     * @return the network layer instance
-     * @throws Exception if no configuration was previously set
-     */
-    public synchronized INetwork getNetworkInstance() throws Exception {
-        if(this.network == null) {
-            if(this.configuration == null)
-                throw new Exception("Cannot access network without loading configuration.");
-            this.network = new NetworkService(this.configuration);
-        }
-        return this.network;
-    }
-
-    private static class QueuedTimer implements Comparable<QueuedTimer>, Comparator<QueuedTimer> {
-        private final ITimerConsumer protocol;
-        private long triggerTime;
-        private final long period;
-        private final boolean periodic;
-        private final ProtocolTimer event;
-
-        private QueuedTimer(long triggerTime, long period, boolean periodic, ProtocolTimer event, ITimerConsumer consumer){
-            this.triggerTime = triggerTime;
-            this.period = period;
-            this.periodic = periodic;
-            this.event = event;
-            this.protocol = consumer;
-        }
-
-        public ITimerConsumer getProtocol() {
-            return protocol;
-        }
-
-        long getPeriod() {
-            return period;
-        }
-
-        /**long getTriggerTime() {
-            return triggerTime;
-        }**/
-
-        void setTriggerTime(long triggerTime) {
-            this.triggerTime = triggerTime;
-        }
-
-        public ProtocolTimer getEvent() {
-            return event;
-        }
-
-        boolean isPeriodic() {
-            return periodic;
-        }
-
-        @Override
-        public int compareTo(QueuedTimer o) {
-            return Long.compare(this.triggerTime, o.triggerTime);
-        }
-
-        @Override
-        public int compare(QueuedTimer o1, QueuedTimer o2) {
-            return Long.compare(o1.triggerTime, o2.triggerTime);
-        }
+        return configuration;
     }
 }
