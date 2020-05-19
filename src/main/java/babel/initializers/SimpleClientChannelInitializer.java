@@ -8,7 +8,7 @@ import network.ISerializer;
 import java.net.UnknownHostException;
 import java.util.Properties;
 
-public class ClientChannelInitializer implements ChannelInitializer<SimpleClientChannel<ProtoMessage>> {
+public class SimpleClientChannelInitializer implements ChannelInitializer<SimpleClientChannel<ProtoMessage>> {
 
     @Override
     public SimpleClientChannel<ProtoMessage> initialize(ISerializer<ProtoMessage> serializer,

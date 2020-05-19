@@ -7,6 +7,7 @@ import babel.exceptions.HandlerRegistrationException;
 import babel.handlers.*;
 import babel.events.consumers.ProtoConsumers;
 import channel.ChannelEvent;
+import channel.ChannelListener;
 import network.*;
 import network.data.Host;
 import org.apache.logging.log4j.LogManager;
@@ -254,24 +255,24 @@ public abstract class GenericProtocol implements ProtoConsumers {
         sendMessage(defaultChannel, msg, destProto, destination, 0);
     }
 
-    protected final void sendMessage(ProtoMessage msg, Host destination, int mode) {
-        sendMessage(defaultChannel, msg, this.protoId, destination, mode);
+    protected final void sendMessage(ProtoMessage msg, Host destination, int connection) {
+        sendMessage(defaultChannel, msg, this.protoId, destination, connection);
     }
 
-    protected final void sendMessage(int channel, ProtoMessage msg, Host destination, int mode) {
-        sendMessage(channel, msg, this.protoId, destination, mode);
+    protected final void sendMessage(int channel, ProtoMessage msg, Host destination, int connection) {
+        sendMessage(channel, msg, this.protoId, destination, connection);
     }
 
-    protected final void sendMessage(ProtoMessage msg, short destProto, Host destination, int mode) {
-        sendMessage(defaultChannel, msg, destProto, destination, mode);
+    protected final void sendMessage(ProtoMessage msg, short destProto, Host destination, int connection) {
+        sendMessage(defaultChannel, msg, destProto, destination, connection);
     }
 
-    protected final void sendMessage(int channelId, ProtoMessage msg, short destProto, Host destination, int mode) {
+    protected final void sendMessage(int channelId, ProtoMessage msg, short destProto, Host destination, int connection) {
         getChannelOrThrow(channelId);
         logger.debug("Sending: " + msg + " to " + destination + " proto " + destProto + " channel " + channelId);
         msg.destProto = destProto;
         msg.sourceProto = this.protoId;
-        babel.sendMessage(channelId, mode, msg, destination);
+        babel.sendMessage(channelId, connection, msg, destination);
     }
 
     protected final void openConnection(Host peer) {

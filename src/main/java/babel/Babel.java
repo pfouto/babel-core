@@ -10,6 +10,9 @@ import babel.events.consumers.ChannelConsumer;
 import babel.events.consumers.NotificationConsumer;
 import babel.events.consumers.TimerConsumer;
 import channel.IChannel;
+import channel.simpleclientserver.SimpleClientChannel;
+import channel.simpleclientserver.SimpleServerChannel;
+import channel.tcp.MultithreadedTCPChannel;
 import network.ISerializer;
 import network.data.Host;
 import org.apache.commons.lang3.NotImplementedException;
@@ -109,10 +112,10 @@ public class Babel {
         msgSerializer = new BaseProtoMessageSerializer(new ConcurrentHashMap<>());
         this.initializers = new ConcurrentHashMap<>();
         initializers.put("Ackos", new AckosChannelInitializer());
-        initializers.put("SimpleClient", new ClientChannelInitializer());
-        initializers.put("SimpleServer", new ServerChannelInitializer());
+        initializers.put(SimpleClientChannel.NAME, new SimpleClientChannelInitializer());
+        initializers.put(SimpleServerChannel.NAME, new SimpleServerChannelInitializer());
         initializers.put("TCP", new TCPChannelInitializer());
-        initializers.put("MultithreadedTCP", new MultithreadedTCPChannelInitializer());
+        initializers.put(MultithreadedTCPChannel.NAME, new MultithreadedTCPChannelInitializer());
     }
 
     private void timerLoop() {
@@ -172,12 +175,12 @@ public class Babel {
     /**
      * Registers a new channel in babel
      *
-     * @param channelName        the channel name
-     * @param channelInitializer the channel initializer
+     * @param name        the channel name
+     * @param initializer the channel initializer
      */
-    public void registerChannelInitializer(String channelName, ChannelInitializer<? extends IChannel<ProtoMessage>> channelInitializer) {
-        if ((channelInitializer = initializers.putIfAbsent(channelName, channelInitializer)) != null) {
-            throw new IllegalArgumentException("Channel with name " + channelName + " already as an initialized " + channelInitializer);
+    public void registerChannelInitializer(String name, ChannelInitializer<? extends IChannel<ProtoMessage>> initializer) {
+        if ((initializer = initializers.putIfAbsent(name, initializer)) != null) {
+            throw new IllegalArgumentException("Channel with name " + name + " already as an initialized " + initializer);
         }
     }
 
@@ -214,11 +217,11 @@ public class Babel {
         throw new NotImplementedException("Not implemented...");
     }
 
-    public void sendMessage(int channelId, int mode, ProtoMessage msg, Host target) {
+    public void sendMessage(int channelId, int connection, ProtoMessage msg, Host target) {
         Pair<IChannel<ProtoMessage>, ChannelToProtoForwarder> channelPair = channelMap.get(channelId);
         if (channelPair == null)
             throw new AssertionError("Sending message to non-existing channelId " + channelId);
-        channelPair.getKey().sendMessage(msg, target, mode);
+        channelPair.getKey().sendMessage(msg, target, connection);
     }
 
     public void closeConnection(int channelId, Host target, int connection) {
