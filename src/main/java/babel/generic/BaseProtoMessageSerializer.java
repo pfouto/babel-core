@@ -16,7 +16,7 @@ public class BaseProtoMessageSerializer implements ISerializer<ProtoMessage> {
 
     public void registerProtoSerializer(short msgCode, ISerializer<? extends ProtoMessage> protoSerializer) {
         if (serializers.putIfAbsent(msgCode, protoSerializer) != null)
-            throw new AssertionError("Trying to re-register serializer in Babel" + msgCode);
+            throw new AssertionError("Trying to re-register serializer in Babel: " + msgCode);
     }
 
     @Override
