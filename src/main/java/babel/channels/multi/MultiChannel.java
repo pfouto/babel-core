@@ -2,7 +2,6 @@ package babel.channels.multi;
 
 import babel.generic.ProtoMessage;
 import channel.ChannelListener;
-import channel.IChannel;
 import channel.base.SingleThreadedBiChannel;
 import network.AttributeValidator;
 import network.Connection;
@@ -91,8 +90,8 @@ public class MultiChannel extends SingleThreadedBiChannel<ProtoMessage, ProtoMes
         Host clientSocket;
         short protoId;
         try {
-            clientSocket = connection.getAttributes().getHost(LISTEN_ADDRESS_ATTRIBUTE);
-            protoId = connection.getAttributes().getShort(ProtoConnections.PROTO_ID);
+            clientSocket = connection.getPeerAttributes().getHost(LISTEN_ADDRESS_ATTRIBUTE);
+            protoId = connection.getPeerAttributes().getShort(ProtoConnections.PROTO_ID);
         } catch (IOException e) {
             logger.error("Inbound connection without valid listen address: " + e.getMessage());
             connection.disconnect();
@@ -108,7 +107,7 @@ public class MultiChannel extends SingleThreadedBiChannel<ProtoMessage, ProtoMes
 
     @Override
     protected void onInboundConnectionDown(Connection<ProtoMessage> connection, Throwable cause) {
-        short protoId = connection.getAttributes().getShort(ProtoConnections.PROTO_ID);
+        short protoId = connection.getPeerAttributes().getShort(ProtoConnections.PROTO_ID);
         ProtoConnections protoConnections = protocolConnections.get((int) protoId);
         if(protoConnections != null) protoConnections.removeInboundConnection(connection, cause);
     }
@@ -128,7 +127,7 @@ public class MultiChannel extends SingleThreadedBiChannel<ProtoMessage, ProtoMes
 
     @Override
     protected void onOutboundConnectionUp(Connection<ProtoMessage> connection) {
-        short protoId = connection.getAttributes().getShort(ProtoConnections.PROTO_ID);
+        short protoId = connection.getPeerAttributes().getShort(ProtoConnections.PROTO_ID);
         protocolConnections.computeIfAbsent((int) protoId,
                 k-> new ProtoConnections(loop, protoId, attributes, listeners.get(protoId), network, this))
                 .addOutboundConnection(connection);
@@ -137,14 +136,14 @@ public class MultiChannel extends SingleThreadedBiChannel<ProtoMessage, ProtoMes
 
     @Override
     protected void onOutboundConnectionDown(Connection<ProtoMessage> connection, Throwable cause) {
-        short protoId = connection.getAttributes().getShort(ProtoConnections.PROTO_ID);
+        short protoId = connection.getPeerAttributes().getShort(ProtoConnections.PROTO_ID);
         ProtoConnections protoConnections = protocolConnections.get((int) protoId);
         if(protoConnections != null) protoConnections.removeOutboundConnection(connection, cause);
     }
 
     @Override
     protected void onOutboundConnectionFailed(Connection<ProtoMessage> connection, Throwable cause) {
-        short protoId = connection.getAttributes().getShort(ProtoConnections.PROTO_ID);
+        short protoId = connection.getPeerAttributes().getShort(ProtoConnections.PROTO_ID);
         ProtoConnections protoConnections = protocolConnections.get((int) protoId);
         if(protoConnections != null) protoConnections.failedOutboundConnection(connection, cause);
 
