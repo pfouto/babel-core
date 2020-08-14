@@ -25,7 +25,7 @@ public class MultiChannel extends SingleThreadedBiChannel<ProtoMessage, ProtoMes
     private static final Logger logger = LogManager.getLogger(MultiChannel.class);
     private static final short TCP_MAGIC_NUMBER = 0x2727;
 
-    private static final String LISTEN_ADDRESS_ATTRIBUTE = "listen_address";
+    protected static final String LISTEN_ADDRESS_ATTRIBUTE = "listen_address";
 
     private static final int DEFAULT_PORT = 12727; //Decimal Ascii for DEL (127) ESC (27)
 
@@ -76,8 +76,11 @@ public class MultiChannel extends SingleThreadedBiChannel<ProtoMessage, ProtoMes
 
         network = new NetworkManager<>(serializer, this, 1000, 3000, 1000);
 
+
+        int nThreads = Integer.parseInt(properties.getProperty("nThreads", "0"));
+
         Host listenAddress = new Host(addr, port);
-        network.createServerSocket(this, listenAddress, this);
+        network.createServerSocket(this, listenAddress, this, nThreads);
 
         attributes = new Attributes();
         attributes.putShort(CHANNEL_MAGIC_ATTRIBUTE, TCP_MAGIC_NUMBER);
@@ -127,7 +130,7 @@ public class MultiChannel extends SingleThreadedBiChannel<ProtoMessage, ProtoMes
 
     @Override
     protected void onOutboundConnectionUp(Connection<ProtoMessage> connection) {
-        short protoId = connection.getPeerAttributes().getShort(ProtoConnections.PROTO_ID);
+        short protoId = connection.getSelfAttributes().getShort(ProtoConnections.PROTO_ID);
         protocolConnections.computeIfAbsent((int) protoId,
                 k-> new ProtoConnections(loop, protoId, attributes, listeners.get(protoId), network, this))
                 .addOutboundConnection(connection);
@@ -136,14 +139,14 @@ public class MultiChannel extends SingleThreadedBiChannel<ProtoMessage, ProtoMes
 
     @Override
     protected void onOutboundConnectionDown(Connection<ProtoMessage> connection, Throwable cause) {
-        short protoId = connection.getPeerAttributes().getShort(ProtoConnections.PROTO_ID);
+        short protoId = connection.getSelfAttributes().getShort(ProtoConnections.PROTO_ID);
         ProtoConnections protoConnections = protocolConnections.get((int) protoId);
         if(protoConnections != null) protoConnections.removeOutboundConnection(connection, cause);
     }
 
     @Override
     protected void onOutboundConnectionFailed(Connection<ProtoMessage> connection, Throwable cause) {
-        short protoId = connection.getPeerAttributes().getShort(ProtoConnections.PROTO_ID);
+        short protoId = connection.getSelfAttributes().getShort(ProtoConnections.PROTO_ID);
         ProtoConnections protoConnections = protocolConnections.get((int) protoId);
         if(protoConnections != null) protoConnections.failedOutboundConnection(connection, cause);
 
