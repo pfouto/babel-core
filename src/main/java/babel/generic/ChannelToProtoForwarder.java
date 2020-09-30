@@ -5,11 +5,15 @@ import babel.events.consumers.ChannelConsumer;
 import channel.ChannelEvent;
 import channel.ChannelListener;
 import network.data.Host;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class ChannelToProtoForwarder implements ChannelListener<ProtoMessage> {
+
+    private static final Logger logger = LogManager.getLogger(ChannelToProtoForwarder.class);
 
     final int channelId;
     final Map<Short, ChannelConsumer> consumers;
@@ -26,10 +30,18 @@ public class ChannelToProtoForwarder implements ChannelListener<ProtoMessage> {
 
     @Override
     public void deliverMessage(ProtoMessage message, Host host) {
-        ChannelConsumer channelConsumer = consumers.get(message.destProto);
-        if (channelConsumer == null)
+        ChannelConsumer channelConsumer;
+        if (message.destProto == -1 && consumers.size() == 1)
+            channelConsumer = consumers.values().iterator().next();
+        else
+            channelConsumer = consumers.get(message.destProto);
+
+        if (channelConsumer == null) {
+            logger.error("Channel " + channelId + " received message to protoId " +
+                    message.destProto + " which is not registered in channel");
             throw new AssertionError("Channel " + channelId + " received message to protoId " +
                     message.destProto + " which is not registered in channel");
+        }
         channelConsumer.deliverMessageIn(new MessageInEvent(message, host, channelId));
     }
 

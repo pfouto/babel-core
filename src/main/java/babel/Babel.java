@@ -13,6 +13,7 @@ import channel.IChannel;
 import channel.simpleclientserver.SimpleClientChannel;
 import channel.simpleclientserver.SimpleServerChannel;
 import channel.tcp.MultithreadedTCPChannel;
+import channel.tcp.TCPChannel;
 import network.ISerializer;
 import network.data.Host;
 import org.apache.commons.lang3.NotImplementedException;
@@ -114,7 +115,7 @@ public class Babel {
         initializers.put("Ackos", new AckosChannelInitializer());
         initializers.put(SimpleClientChannel.NAME, new SimpleClientChannelInitializer());
         initializers.put(SimpleServerChannel.NAME, new SimpleServerChannelInitializer());
-        initializers.put("TCP", new TCPChannelInitializer());
+        initializers.put(TCPChannel.NAME, new TCPChannelInitializer());
         initializers.put(MultithreadedTCPChannel.NAME, new MultithreadedTCPChannelInitializer());
     }
 

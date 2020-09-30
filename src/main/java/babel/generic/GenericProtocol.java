@@ -7,13 +7,15 @@ import babel.exceptions.HandlerRegistrationException;
 import babel.handlers.*;
 import babel.events.consumers.ProtoConsumers;
 import channel.ChannelEvent;
-import channel.ChannelListener;
 import network.*;
 import network.data.Host;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadInfo;
+import java.lang.management.ThreadMXBean;
 import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -34,8 +36,8 @@ public abstract class GenericProtocol implements ProtoConsumers {
 
     private BlockingQueue<InternalEvent> queue;
     private Thread executionThread;
-    private String protoName;
-    private short protoId;
+    private final String protoName;
+    private final short protoId;
 
     private int defaultChannel;
     private Map<Integer, ChannelHandlers> channels;
@@ -46,6 +48,8 @@ public abstract class GenericProtocol implements ProtoConsumers {
 
     private static Babel babel = Babel.getInstance();
 
+    //Debug
+    protected ThreadMXBean tmx = ManagementFactory.getThreadMXBean();
     /**
      * Creates a generic protocol with the provided name and numeric identifier
      * and the given event queue policy.
@@ -64,6 +68,7 @@ public abstract class GenericProtocol implements ProtoConsumers {
         this.protoName = protoName;
 
         //TODO change to event loop (simplifies the deliver->poll->handle process)
+        //TODO only change if performance better
         this.executionThread = new Thread(this::mainLoop, protoId + " - " + protoName);
         channels = new HashMap<>();
         defaultChannel = -1;
@@ -73,6 +78,8 @@ public abstract class GenericProtocol implements ProtoConsumers {
         this.requestHandlers = new HashMap<>();
         this.replyHandlers = new HashMap<>();
         this.notificationHandlers = new HashMap<>();
+
+        tmx.setThreadContentionMonitoringEnabled(true);
     }
 
     /**
@@ -405,35 +412,93 @@ public abstract class GenericProtocol implements ProtoConsumers {
     }
 
     /* ------------------ MAIN LOOP -------------------------------------------------*/
+
+    long lastBC = 0, lastBT = 0, lastWC = 0, lastWT = 0, lastET = 0;
+    long lastMI = 0, lastMF = 0, lastMS = 0, lastN = 0, lastCC = 0, lastIPC = 0, lastT = 0;
+
+    protected void debugInfo(ProtoTimer v, long l) {
+        ThreadInfo threadInfo = tmx.getThreadInfo(Thread.currentThread().getId());
+
+        long cBC = threadInfo.getBlockedCount();
+        long cBT = threadInfo.getBlockedTime();
+        long cWC = threadInfo.getWaitedCount();
+        long cWT = threadInfo.getWaitedTime();
+        long cET = nEventsTaken;
+        long cMI = nMessageInEvents;
+        long cMF = nMessageFailedEvents;
+        long cMS = nMessageSentEvents;
+        long cN = nNotificationEvents;
+        long cCC = nCustomChannelEvents;
+        long cIPC = nIPCEvents;
+        long cT = nTimerEvents;
+
+        logger.info("\tbc " + String.format("%,2d",(cBC - lastBC)) + " bt " + String.format("%,2d",(cBT - lastBT)) +
+                " wc " + String.format("%,9d", (cWC - lastWC)) + " wt " + String.format("%,7d", (cWT - lastWT)) +
+                " pend " + String.format("%8d", queue.size()) + " et " + String.format("%,9d", (cET - lastET)) +
+                " MI " + String.format("%,9d", (cMI - lastMI)) + " MF " + String.format("%,2d", (cMF - lastMF)) +
+                " MS " + String.format("%,7d", (cMS - lastMS)) + " N " + String.format("%,7d", (cN - lastN)) +
+                " CC " + String.format("%,2d", (cCC - lastCC)) + " IPC " + String.format("%,9d", (cIPC - lastIPC)) +
+                " T " + String.format("%,2d", (cT - lastT)));
+
+        lastBC = cBC;
+        lastBT = cBT;
+        lastWC = cWC;
+        lastWT = cWT;
+        lastET = cET;
+        lastMI = cMI;
+        lastMF = cMF;
+        lastMS = cMS;
+        lastN = cN;
+        lastCC = cCC;
+        lastIPC = cIPC;
+        lastT = cT;
+    }
+
+    protected long nEventsTaken = 0;
+    protected long nMessageInEvents = 0;
+    protected long nMessageFailedEvents = 0;
+    protected long nMessageSentEvents = 0;
+    protected long nTimerEvents = 0;
+    protected long nNotificationEvents = 0;
+    protected long nIPCEvents = 0;
+    protected long nCustomChannelEvents = 0;
     private void mainLoop() {
         while (true) {
             try {
                 InternalEvent pe = this.queue.take();
+                nEventsTaken++;
                 logger.debug("Received: " + pe);
                 switch (pe.getType()) {
                     case MESSAGE_IN_EVENT:
                         this.handleMessageIn((MessageInEvent) pe);
+                        nMessageInEvents++;
                         break;
                     case MESSAGE_FAILED_EVENT:
                         this.handleMessageFailed((MessageFailedEvent) pe);
+                        nMessageFailedEvents++;
                         break;
                     case MESSAGE_SENT_EVENT:
                         this.handleMessageSent((MessageSentEvent) pe);
+                        nMessageSentEvents++;
                         break;
                     case TIMER_EVENT:
                         this.handleTimer((TimerEvent) pe);
+                        nTimerEvents++;
                         break;
                     case NOTIFICATION_EVENT:
                         this.handleNotification((NotificationEvent) pe);
+                        nNotificationEvents++;
                         break;
                     case IPC_EVENT:
                         this.handleIPC((IPCEvent) pe);
+                        nIPCEvents++;
                         break;
                     case CUSTOM_CHANNEL_EVENT:
                         this.handleChannelEvent((CustomChannelEvent) pe);
+                        nCustomChannelEvents++;
                         break;
                     default:
-                        throw new AssertionError("Unexpected event received by babel.protocol "
+                        throw new AssertionError("Unexpected event received by babel. protocol "
                                 + protoId + " (" + protoName + ")");
                 }
             } catch (InterruptedException e) {
