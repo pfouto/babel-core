@@ -16,21 +16,21 @@ public class ChannelToProtoForwarder implements ChannelListener<ProtoMessage> {
     private static final Logger logger = LogManager.getLogger(ChannelToProtoForwarder.class);
 
     final int channelId;
-    final Map<Short, ChannelConsumer> consumers;
+    final Map<Short, GenericProtocol> consumers;
 
     public ChannelToProtoForwarder(int channelId) {
         this.channelId = channelId;
         consumers = new ConcurrentHashMap<>();
     }
 
-    public void addConsumer(short protoId, ChannelConsumer consumer) {
+    public void addConsumer(short protoId, GenericProtocol consumer) {
         if (consumers.putIfAbsent(protoId, consumer) != null)
             throw new AssertionError("Consumer with protoId " + protoId + " already exists in channel");
     }
 
     @Override
     public void deliverMessage(ProtoMessage message, Host host) {
-        ChannelConsumer channelConsumer;
+        GenericProtocol channelConsumer;
         if (message.destProto == -1 && consumers.size() == 1)
             channelConsumer = consumers.values().iterator().next();
         else

@@ -1,14 +1,13 @@
 package babel;
 
-import babel.events.*;
-import babel.exceptions.NoSuchProtocolException;
+import babel.events.IPCEvent;
+import babel.events.NotificationEvent;
+import babel.events.TimerEvent;
 import babel.exceptions.InvalidParameterException;
+import babel.exceptions.NoSuchProtocolException;
 import babel.exceptions.ProtocolAlreadyExistsException;
 import babel.generic.*;
 import babel.initializers.*;
-import babel.events.consumers.ChannelConsumer;
-import babel.events.consumers.NotificationConsumer;
-import babel.events.consumers.TimerConsumer;
 import channel.IChannel;
 import channel.simpleclientserver.SimpleClientChannel;
 import channel.simpleclientserver.SimpleServerChannel;
@@ -16,7 +15,6 @@ import channel.tcp.MultithreadedTCPChannel;
 import channel.tcp.TCPChannel;
 import network.ISerializer;
 import network.data.Host;
-import org.apache.commons.lang3.NotImplementedException;
 import org.apache.commons.lang3.tuple.Pair;
 
 import java.io.FileInputStream;
@@ -79,21 +77,21 @@ public class Babel {
     }
 
     //Protocols
-    private Map<Short, GenericProtocol> protocolMap;
-    private Map<String, GenericProtocol> protocolByNameMap;
-    private Map<Short, Set<NotificationConsumer>> subscribers;
+    private final Map<Short, GenericProtocol> protocolMap;
+    private final Map<String, GenericProtocol> protocolByNameMap;
+    private final Map<Short, Set<GenericProtocol>> subscribers;
 
     //Timers
-    private Map<Long, TimerEvent> allTimers;
-    private PriorityBlockingQueue<TimerEvent> timerQueue;
-    private Thread timersThread;
-    private AtomicLong timersCounter;
+    private final Map<Long, TimerEvent> allTimers;
+    private final PriorityBlockingQueue<TimerEvent> timerQueue;
+    private final Thread timersThread;
+    private final AtomicLong timersCounter;
 
     //Channels
-    private Map<String, ChannelInitializer<? extends IChannel<ProtoMessage>>> initializers;
-    private BaseProtoMessageSerializer msgSerializer;
-    private Map<Integer, Pair<IChannel<ProtoMessage>, ChannelToProtoForwarder>> channelMap;
-    private AtomicInteger channelIdGenerator;
+    private final Map<String, ChannelInitializer<? extends IChannel<ProtoMessage>>> initializers;
+    private final BaseProtoMessageSerializer msgSerializer;
+    private final Map<Integer, Pair<IChannel<ProtoMessage>, ChannelToProtoForwarder>> channelMap;
+    private final AtomicInteger channelIdGenerator;
 
     private Babel() {
         //Protocols
@@ -112,11 +110,13 @@ public class Babel {
         channelIdGenerator = new AtomicInteger(0);
         msgSerializer = new BaseProtoMessageSerializer(new ConcurrentHashMap<>());
         this.initializers = new ConcurrentHashMap<>();
-        initializers.put("Ackos", new AckosChannelInitializer());
-        initializers.put(SimpleClientChannel.NAME, new SimpleClientChannelInitializer());
-        initializers.put(SimpleServerChannel.NAME, new SimpleServerChannelInitializer());
-        initializers.put(TCPChannel.NAME, new TCPChannelInitializer());
-        initializers.put(MultithreadedTCPChannel.NAME, new MultithreadedTCPChannelInitializer());
+
+        registerChannelInitializer(SimpleClientChannel.NAME, new SimpleClientChannelInitializer());
+        registerChannelInitializer(SimpleServerChannel.NAME, new SimpleServerChannelInitializer());
+        registerChannelInitializer(TCPChannel.NAME, new TCPChannelInitializer());
+
+        registerChannelInitializer("Ackos", new AckosChannelInitializer());
+        registerChannelInitializer(MultithreadedTCPChannel.NAME, new MultithreadedTCPChannelInitializer());
     }
 
     private void timerLoop() {
@@ -155,7 +155,7 @@ public class Babel {
      * Register a protocol in Babel
      *
      * @param p the protocol to registered
-     * @throws ProtocolAlreadyExistsException if a protocol with the same id or name has already been registered in Babel
+     * @throws ProtocolAlreadyExistsException if a protocol with the same id or name has already been registered
      */
     public void registerProtocol(GenericProtocol p) throws ProtocolAlreadyExistsException {
         GenericProtocol old = protocolMap.putIfAbsent(p.getProtoId(), p);
@@ -179,23 +179,26 @@ public class Babel {
      * @param name        the channel name
      * @param initializer the channel initializer
      */
-    public void registerChannelInitializer(String name, ChannelInitializer<? extends IChannel<ProtoMessage>> initializer) {
-        if ((initializer = initializers.putIfAbsent(name, initializer)) != null) {
-            throw new IllegalArgumentException("Channel with name " + name + " already as an initialized " + initializer);
+    public void registerChannelInitializer(String name,
+                                           ChannelInitializer<? extends IChannel<ProtoMessage>> initializer) {
+        ChannelInitializer<? extends IChannel<ProtoMessage>> old = initializers.putIfAbsent(name, initializer);
+        if (old != null) {
+            throw new IllegalArgumentException("Initializer for channel with name " + name +
+                    " already registered: " + old);
         }
     }
 
     /**
      * Creates a channel for a protocol
+     * Called by {@link GenericProtocol}. Do not evoke directly.
      *
-     * @param channelName   the channel name
+     * @param channelName   the name of the channel to create
      * @param protoId       the protocol numeric identifier
-     * @param consumerProto ???
      * @param props         the properties required by the channel
      * @return the channel Id
      * @throws IOException if channel creation fails
      */
-    public int createChannel(String channelName, short protoId, ChannelConsumer consumerProto, Properties props)
+    public int createChannel(String channelName, short protoId, Properties props)
             throws IOException {
         ChannelInitializer<? extends IChannel<?>> initializer = initializers.get(channelName);
         if (initializer == null)
@@ -208,16 +211,20 @@ public class Babel {
         return channelId;
     }
 
-    public void registerChannelInterest(int channelId, short protoId, ChannelConsumer consumerProto) {
+    /**
+     * Registers interest in receiving events from a channel.
+     * @param consumerProto the protocol that will receive events generated by the new channel
+     * Called by {@link GenericProtocol}. Do not evoke directly.
+     */
+    public void registerChannelInterest(int channelId, short protoId, GenericProtocol consumerProto) {
         ChannelToProtoForwarder forwarder = channelMap.get(channelId).getValue();
         forwarder.addConsumer(protoId, consumerProto);
     }
 
-    public int getSharedChannel() {
-        //TODO share channels somehow
-        throw new NotImplementedException("Not implemented...");
-    }
-
+    /**
+     * Sends a message to a peer using the given channel and connection.
+     * Called by {@link GenericProtocol}. Do not evoke directly.
+     */
     public void sendMessage(int channelId, int connection, ProtoMessage msg, Host target) {
         Pair<IChannel<ProtoMessage>, ChannelToProtoForwarder> channelPair = channelMap.get(channelId);
         if (channelPair == null)
@@ -225,6 +232,10 @@ public class Babel {
         channelPair.getKey().sendMessage(msg, target, connection);
     }
 
+    /**
+     * Closes a connection to a peer in a given channel.
+     * Called by {@link GenericProtocol}. Do not evoke directly.
+     */
     public void closeConnection(int channelId, Host target, int connection) {
         Pair<IChannel<ProtoMessage>, ChannelToProtoForwarder> channelPair = channelMap.get(channelId);
         if (channelPair == null)
@@ -232,6 +243,10 @@ public class Babel {
         channelPair.getKey().closeConnection(target, connection);
     }
 
+    /**
+     * Opens a connection to a peer in the given channel.
+     * Called by {@link GenericProtocol}. Do not evoke directly.
+     */
     public void openConnection(int channelId, Host target) {
         Pair<IChannel<ProtoMessage>, ChannelToProtoForwarder> channelPair = channelMap.get(channelId);
         if (channelPair == null)
@@ -239,11 +254,20 @@ public class Babel {
         channelPair.getKey().openConnection(target);
     }
 
+    /**
+     * Registers a (de)serializer for a message type.
+     * Called by {@link GenericProtocol}. Do not evoke directly.
+     */
     public void registerSerializer(short msgCode, ISerializer<? extends ProtoMessage> serializer) {
         msgSerializer.registerProtoSerializer(msgCode, serializer);
     }
 
     // ----------------------------- REQUEST / REPLY / NOTIFY
+
+    /**
+     * Send a request/reply to a protocol
+     * Called by {@link GenericProtocol}. Do not evoke directly.
+     */
     public void sendIPC(IPCEvent ipc) throws NoSuchProtocolException {
         GenericProtocol gp = protocolMap.get(ipc.getDestinationID());
         if (gp == null) {
@@ -253,21 +277,30 @@ public class Babel {
             protocolMap.forEach((id, p) -> sb.append(id).append(" - ").append(p.getProtoName()).append(", "));
             sb.append("]");
             throw new NoSuchProtocolException(sb.toString());
-            //throw new NoSuchProtocolException(ipc.getDestinationID());
         }
         gp.deliverIPC(ipc);
     }
 
-    public void subscribeNotification(short nId, NotificationConsumer consumer) {
+    /**
+     * Subscribes a protocol to a notification
+     * Called by {@link GenericProtocol}. Do not evoke directly.
+     */
+    public void subscribeNotification(short nId, GenericProtocol consumer) {
         subscribers.computeIfAbsent(nId, k -> ConcurrentHashMap.newKeySet()).add(consumer);
     }
-
-    public void unsubscribeNotification(short nId, NotificationConsumer consumer) {
+    /**
+     * Unsubscribes a protocol from a notification
+     * Called by {@link GenericProtocol}. Do not evoke directly.
+     */
+    public void unsubscribeNotification(short nId, GenericProtocol consumer) {
         subscribers.getOrDefault(nId, Collections.emptySet()).remove(consumer);
     }
-
+    /**
+     * Triggers a notification, delivering to all subscribed protocols
+     * Called by {@link GenericProtocol}. Do not evoke directly.
+     */
     public void triggerNotification(NotificationEvent n) {
-        for (NotificationConsumer c : subscribers.getOrDefault(n.getNotification().getId(), Collections.emptySet())) {
+        for (GenericProtocol c : subscribers.getOrDefault(n.getNotification().getId(), Collections.emptySet())) {
             c.deliverNotification(n);
         }
     }
@@ -275,12 +308,13 @@ public class Babel {
 
     /**
      * Setups a periodic timer to be monitored by Babel
+     * Called by {@link GenericProtocol}. Do not evoke directly.
      *
      * @param consumer the protocol that setup the periodic timer
      * @param first    the amount of time until the first trigger of the timer event
      * @param period   the periodicity of the timer event
      */
-    public long setupPeriodicTimer(ProtoTimer t, TimerConsumer consumer, long first, long period) {
+    public long setupPeriodicTimer(ProtoTimer t, GenericProtocol consumer, long first, long period) {
         long id = timersCounter.incrementAndGet();
         timerQueue.add(new TimerEvent(t, id, consumer,
                 System.currentTimeMillis() + first, true, period));
@@ -290,11 +324,12 @@ public class Babel {
 
     /**
      * Setups a timer to be monitored by Babel
+     * Called by {@link GenericProtocol}. Do not evoke directly.
      *
      * @param consumer the protocol that setup the timer
      * @param timeout  the amount of time until the timer event is triggered
      */
-    public long setupTimer(ProtoTimer t, TimerConsumer consumer, long timeout) {
+    public long setupTimer(ProtoTimer t, GenericProtocol consumer, long timeout) {
         long id = timersCounter.incrementAndGet();
         TimerEvent newTimer = new TimerEvent(t, id, consumer,
                 System.currentTimeMillis() + timeout, false, -1);
@@ -307,6 +342,7 @@ public class Babel {
     /**
      * Cancels a timer that was being monitored by Babel
      * Babel will forget that the timer exists
+     * Called by {@link GenericProtocol}. Do not evoke directly.
      *
      * @param timerID the unique id of the timer event to be canceled
      * @return the timer event or null if it was not being monitored by Babel
@@ -326,7 +362,7 @@ public class Babel {
      * Reads the provided properties files and builds a configuration
      * Console parameters override or add properties in the provided file
      * <p>
-     * properties should be provided as:   propertyName=value
+     * Properties should be provided as:   propertyName=value
      *
      * @param propsFilename the path to the properties file
      * @param args          console parameters

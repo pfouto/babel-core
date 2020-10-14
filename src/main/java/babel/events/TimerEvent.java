@@ -1,7 +1,7 @@
 package babel.events;
 
+import babel.generic.GenericProtocol;
 import babel.generic.ProtoTimer;
-import babel.events.consumers.TimerConsumer;
 
 import java.util.Comparator;
 
@@ -10,13 +10,13 @@ public class TimerEvent extends InternalEvent implements Comparable<TimerEvent>,
     private long uuid;
     private ProtoTimer timer;
 
-    private final TimerConsumer consumer;
+    private final GenericProtocol consumer;
     private long triggerTime;
     private final boolean periodic;
     private final long period;
 
-    public TimerEvent(ProtoTimer timer, long uuid, TimerConsumer consumer, long triggerTime, boolean periodic,
-                       long period) {
+    public TimerEvent(ProtoTimer timer, long uuid, GenericProtocol consumer, long triggerTime, boolean periodic,
+                      long period) {
         super(EventType.TIMER_EVENT);
         this.timer = timer;
         this.uuid = uuid;
@@ -58,7 +58,7 @@ public class TimerEvent extends InternalEvent implements Comparable<TimerEvent>,
         return triggerTime;
     }
 
-    public TimerConsumer getConsumer() {
+    public GenericProtocol getConsumer() {
         return consumer;
     }
 

@@ -2,21 +2,19 @@ package babel.generic;
 
 import babel.Babel;
 import babel.events.*;
-import babel.exceptions.NoSuchProtocolException;
 import babel.exceptions.HandlerRegistrationException;
+import babel.exceptions.NoSuchProtocolException;
 import babel.handlers.*;
-import babel.events.consumers.ProtoConsumers;
 import channel.ChannelEvent;
-import network.*;
+import network.ISerializer;
 import network.data.Host;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
-import java.lang.management.ManagementFactory;
-import java.lang.management.ThreadInfo;
-import java.lang.management.ThreadMXBean;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -28,28 +26,31 @@ import java.util.concurrent.LinkedBlockingQueue;
  * Users should extend this class to implement their protocols
  */
 @SuppressWarnings({"unused", "SameParameterValue"})
-public abstract class GenericProtocol implements ProtoConsumers {
+public abstract class GenericProtocol {
 
     private static final Logger logger = LogManager.getLogger(GenericProtocol.class);
 
     //TODO split in GenericConnectionlessProtocol and GenericConnectionProtocol?
 
-    private BlockingQueue<InternalEvent> queue;
-    private Thread executionThread;
+    private final BlockingQueue<InternalEvent> queue;
+    private final Thread executionThread;
     private final String protoName;
     private final short protoId;
 
     private int defaultChannel;
-    private Map<Integer, ChannelHandlers> channels;
-    private Map<Short, TimerHandler<? extends ProtoTimer>> timerHandlers;
-    private Map<Short, RequestHandler<? extends ProtoRequest>> requestHandlers;
-    private Map<Short, ReplyHandler<? extends ProtoReply>> replyHandlers;
-    private Map<Short, NotificationHandler<? extends ProtoNotification>> notificationHandlers;
 
-    private static Babel babel = Babel.getInstance();
+    private final Map<Integer, ChannelHandlers> channels;
+    private final Map<Short, TimerHandler<? extends ProtoTimer>> timerHandlers;
+    private final Map<Short, RequestHandler<? extends ProtoRequest>> requestHandlers;
+    private final Map<Short, ReplyHandler<? extends ProtoReply>> replyHandlers;
+    private final Map<Short, NotificationHandler<? extends ProtoNotification>> notificationHandlers;
+
+    private static final Babel babel = Babel.getInstance();
 
     //Debug
-    protected ThreadMXBean tmx = ManagementFactory.getThreadMXBean();
+    ProtocolMetrics metrics = new ProtocolMetrics();
+    //protected ThreadMXBean tmx = ManagementFactory.getThreadMXBean();
+
     /**
      * Creates a generic protocol with the provided name and numeric identifier
      * and the given event queue policy.
@@ -79,7 +80,7 @@ public abstract class GenericProtocol implements ProtoConsumers {
         this.replyHandlers = new HashMap<>();
         this.notificationHandlers = new HashMap<>();
 
-        tmx.setThreadContentionMonitoringEnabled(true);
+        //tmx.setThreadContentionMonitoringEnabled(true);
     }
 
     /**
@@ -127,6 +128,10 @@ public abstract class GenericProtocol implements ProtoConsumers {
         this.executionThread.start();
     }
 
+    public ProtocolMetrics getMetrics() {
+        return metrics;
+    }
+
     /* ------------------ PROTOCOL REGISTERS -------------------------------------------------*/
 
     private <V> void registerHandler(short id, V handler, Map<Short, V> handlerMap)
@@ -141,6 +146,7 @@ public abstract class GenericProtocol implements ProtoConsumers {
      * Register a message inHandler for the protocol to process message events
      * form the network
      *
+     * @param cId       the id of the channel
      * @param msgId     the numeric identifier of the message event
      * @param inHandler the function to process message event
      * @throws HandlerRegistrationException if a inHandler for the message id is already registered
@@ -151,12 +157,33 @@ public abstract class GenericProtocol implements ProtoConsumers {
         registerMessageHandler(cId, msgId, inHandler, null, null);
     }
 
+    /**
+     * Register a message inHandler for the protocol to process message events
+     * form the network
+     *
+     * @param cId         the id of the channel
+     * @param msgId       the numeric identifier of the message event
+     * @param inHandler   the function to handle a received message event
+     * @param sentHandler the function to handle a sent message event
+     * @throws HandlerRegistrationException if a inHandler for the message id is already registered
+     */
     protected final <V extends ProtoMessage> void registerMessageHandler(int cId, short msgId,
                                                                          MessageInHandler<V> inHandler,
                                                                          MessageSentHandler<V> sentHandler)
             throws HandlerRegistrationException {
         registerMessageHandler(cId, msgId, inHandler, sentHandler, null);
     }
+
+    /**
+     * Register a message inHandler for the protocol to process message events
+     * form the network
+     *
+     * @param cId         the id of the channel
+     * @param msgId       the numeric identifier of the message event
+     * @param inHandler   the function to handle a received message event
+     * @param failHandler the function to handle a failed message event
+     * @throws HandlerRegistrationException if a inHandler for the message id is already registered
+     */
 
     protected final <V extends ProtoMessage> void registerMessageHandler(int cId, short msgId,
                                                                          MessageInHandler<V> inHandler,
@@ -165,6 +192,17 @@ public abstract class GenericProtocol implements ProtoConsumers {
         registerMessageHandler(cId, msgId, inHandler, null, failHandler);
     }
 
+    /**
+     * Register a message inHandler for the protocol to process message events
+     * form the network
+     *
+     * @param cId         the id of the channel
+     * @param msgId       the numeric identifier of the message event
+     * @param inHandler   the function to handle a received message event
+     * @param sentHandler the function to handle a sent message event
+     * @param failHandler the function to handle a failed message event
+     * @throws HandlerRegistrationException if a inHandler for the message id is already registered
+     */
     protected final <V extends ProtoMessage> void registerMessageHandler(int cId, short msgId,
                                                                          MessageInHandler<V> inHandler,
                                                                          MessageSentHandler<V> sentHandler,
@@ -175,6 +213,14 @@ public abstract class GenericProtocol implements ProtoConsumers {
         if (failHandler != null) registerHandler(msgId, failHandler, getChannelOrThrow(cId).messageFailedHandlers);
     }
 
+    /**
+     * Register an handler to process a channel-specific event
+     *
+     * @param cId     the id of the channel
+     * @param eventId the id of the event to process
+     * @param handler the function to handle the event
+     * @throws HandlerRegistrationException if a inHandler for the event id is already registered
+     */
     protected final <V extends ChannelEvent> void registerChannelEventHandler(int cId, short eventId,
                                                                               ChannelEventHandler<V> handler)
             throws HandlerRegistrationException {
@@ -228,12 +274,25 @@ public abstract class GenericProtocol implements ProtoConsumers {
         return handlers;
     }
 
+    /**
+     * Registers a (de)serializer for a message type
+     *
+     * @param msgId      the message id
+     * @param serializer the serializer for the given message id
+     */
     protected final void registerMessageSerializer(short msgId, ISerializer<? extends ProtoMessage> serializer) {
         babel.registerSerializer(msgId, serializer);
     }
 
+    /**
+     * Creates a new channel
+     *
+     * @param channelName the name of the channel
+     * @param props       channel-specific properties. See the documentation for each channel.
+     * @return the id of the newly created channel
+     */
     protected final int createChannel(String channelName, Properties props) throws IOException {
-        int channelId = babel.createChannel(channelName, this.protoId, this, props);
+        int channelId = babel.createChannel(channelName, this.protoId, props);
         registerSharedChannel(channelId);
         return channelId;
     }
@@ -245,59 +304,163 @@ public abstract class GenericProtocol implements ProtoConsumers {
             setDefaultChannel(channelId);
     }
 
+    /**
+     * Sets the default channel for the {@link #sendMessage(ProtoMessage, Host)}, {@link #openConnection(Host)}
+     * and {@link #closeConnection(Host)} methods.
+     *
+     * @param channelId the channel id
+     */
     protected final void setDefaultChannel(int channelId) {
         getChannelOrThrow(channelId);
         defaultChannel = channelId;
     }
 
+    /**
+     * Sends a message to a specified destination, using the default channel.
+     * May require the use of {@link #openConnection(Host)} beforehand.
+     *
+     * @param msg         the message to send
+     * @param destination the ip/port to send the message to
+     */
     protected final void sendMessage(ProtoMessage msg, Host destination) {
         sendMessage(defaultChannel, msg, this.protoId, destination, 0);
     }
 
+    /**
+     * Sends a message to a specified destination using the given channel.
+     * May require the use of {@link #openConnection(Host)} beforehand.
+     *
+     * @param channel     the channel to send the message through
+     * @param msg         the message to send
+     * @param destination the ip/port to send the message to
+     */
     protected final void sendMessage(int channel, ProtoMessage msg, Host destination) {
         sendMessage(channel, msg, this.protoId, destination, 0);
     }
 
+    /**
+     * Sends a message to a different protocol in the specified destination, using the default channel.
+     * May require the use of {@link #openConnection(Host)} beforehand.
+     *
+     * @param destProto   the target protocol for the message.
+     * @param msg         the message to send
+     * @param destination the ip/port to send the message to
+     */
     protected final void sendMessage(ProtoMessage msg, short destProto, Host destination) {
         sendMessage(defaultChannel, msg, destProto, destination, 0);
     }
 
+    /**
+     * Sends a message to a specified destination, using the default channel, and a specific connection in that channel.
+     * May require the use of {@link #openConnection(Host)} beforehand.
+     *
+     * @param connection  the channel-specific connection to use.
+     * @param msg         the message to send
+     * @param destination the ip/port to send the message to
+     */
     protected final void sendMessage(ProtoMessage msg, Host destination, int connection) {
         sendMessage(defaultChannel, msg, this.protoId, destination, connection);
     }
 
+    /**
+     * Sends a message to a specified destination, using a specific connection in a given channel.
+     * May require the use of {@link #openConnection(Host)} beforehand.
+     *
+     * @param channel     the channel to send the message through
+     * @param connection  the channel-specific connection to use.
+     * @param msg         the message to send
+     * @param destination the ip/port to send the message to
+     */
     protected final void sendMessage(int channel, ProtoMessage msg, Host destination, int connection) {
         sendMessage(channel, msg, this.protoId, destination, connection);
     }
 
+    /**
+     * Sends a message to a different protocol in the specified destination,
+     * using a specific connection in the default channel.
+     * May require the use of {@link #openConnection(Host)} beforehand.
+     *
+     * @param destProto   the target protocol for the message.
+     * @param connection  the channel-specific connection to use.
+     * @param msg         the message to send
+     * @param destination the ip/port to send the message to
+     */
     protected final void sendMessage(ProtoMessage msg, short destProto, Host destination, int connection) {
         sendMessage(defaultChannel, msg, destProto, destination, connection);
     }
 
-    protected final void sendMessage(int channelId, ProtoMessage msg, short destProto, Host destination, int connection) {
+    /**
+     * Sends a message to a different protocol in the specified destination,
+     * using a specific connection in the given channel.
+     * May require the use of {@link #openConnection(Host)} beforehand.
+     *
+     * @param channelId   the channel to send the message through
+     * @param destProto   the target protocol for the message.
+     * @param connection  the channel-specific connection to use.
+     * @param msg         the message to send
+     * @param destination the ip/port to send the message to
+     */
+    protected final void sendMessage(int channelId, ProtoMessage msg, short destProto,
+                                     Host destination, int connection) {
         getChannelOrThrow(channelId);
-        logger.debug("Sending: " + msg + " to " + destination + " proto " + destProto + " channel " + channelId);
+        if (logger.isDebugEnabled())
+            logger.debug("Sending: " + msg + " to " + destination + " proto " + destProto +
+                    " channel " + channelId);
         msg.destProto = destProto;
         msg.sourceProto = this.protoId;
         babel.sendMessage(channelId, connection, msg, destination);
     }
 
+    /**
+     * Open a connection to the given peer using the default channel.
+     * Depending on the channel, this method may be unnecessary/forbidden.
+     *
+     * @param peer the ip/port to create the connection to.
+     */
     protected final void openConnection(Host peer) {
         openConnection(peer, defaultChannel);
     }
 
+    /**
+     * Open a connection to the given peer using the given channel.
+     * Depending on the channel, this method may be unnecessary/forbidden.
+     *
+     * @param peer      the ip/port to create the connection to.
+     * @param channelId the channel to create the connection in
+     */
     protected final void openConnection(Host peer, int channelId) {
         babel.openConnection(channelId, peer);
     }
 
+    /**
+     * Closes the connection to the given peer using the default channel.
+     * Depending on the channel, this method may be unnecessary/forbidden.
+     *
+     * @param peer the ip/port to close the connection to.
+     */
     protected final void closeConnection(Host peer) {
         closeConnection(peer, defaultChannel);
     }
 
+    /**
+     * Closes the connection to the given peer in the given channel.
+     * Depending on the channel, this method may be unnecessary/forbidden.
+     *
+     * @param peer      the ip/port to close the connection to.
+     * @param channelId the channel to close the connection in
+     */
     protected final void closeConnection(Host peer, int channelId) {
         closeConnection(peer, channelId, protoId);
     }
 
+    /**
+     * Closes a specific connection to the given peer in the given channel.
+     * Depending on the channel, this method may be unnecessary/forbidden.
+     *
+     * @param peer       the ip/port to close the connection to.
+     * @param channelId  the channel to close the connection in
+     * @param connection the channel-specific connection to close
+     */
     protected final void closeConnection(Host peer, int channelId, int connection) {
         babel.closeConnection(channelId, peer, connection);
     }
@@ -305,9 +468,10 @@ public abstract class GenericProtocol implements ProtoConsumers {
     /* ------------------ IPC BABEL PROXY -------------------------------------------------*/
 
     /**
-     * Send a request to the destination protocol
+     * Sends a request to the destination protocol
      *
-     * @param request request event
+     * @param request     request event
+     * @param destination the destination protocol
      * @throws NoSuchProtocolException if the protocol does not exists
      */
     protected final void sendRequest(ProtoRequest request, short destination) throws NoSuchProtocolException {
@@ -315,9 +479,10 @@ public abstract class GenericProtocol implements ProtoConsumers {
     }
 
     /**
-     * Send a reply to the destination protocol
+     * Sends a reply to the destination protocol
      *
-     * @param reply reply event
+     * @param destination the destination protocol
+     * @param reply       reply event
      * @throws NoSuchProtocolException if the protocol does not exists
      */
     protected final void sendReply(ProtoReply reply, short destination) throws NoSuchProtocolException {
@@ -325,17 +490,35 @@ public abstract class GenericProtocol implements ProtoConsumers {
     }
 
     // ------------------------------ NOTIFICATION BABEL PROXY ---------------------------------
+
+    /**
+     * Subscribes a notification, executing the given callback everytime it is triggered by any protocol.
+     *
+     * @param nId the id of the notification to subscribe to
+     * @param h   the callback to execute upon receiving the notification
+     * @throws HandlerRegistrationException if there is already a callback for the notification
+     */
     protected final <V extends ProtoNotification> void subscribeNotification(short nId, NotificationHandler<V> h)
             throws HandlerRegistrationException {
         registerHandler(nId, h, notificationHandlers);
         babel.subscribeNotification(nId, this);
     }
 
+    /**
+     * Unsubscribes a notification.
+     *
+     * @param nId the id of the notification to unsubscribe from
+     */
     protected final void unsubscribeNotification(short nId) {
         notificationHandlers.remove(nId);
         babel.unsubscribeNotification(nId, this);
     }
 
+    /**
+     * Triggers a notification, causing every protocol that subscribe it to execute its callback.
+     *
+     * @param n the notification event to trigger
+     */
     protected final void triggerNotification(ProtoNotification n) {
         babel.triggerNotification(new NotificationEvent(n, protoId));
     }
@@ -355,9 +538,9 @@ public abstract class GenericProtocol implements ProtoConsumers {
     }
 
     /**
-     * Setups a t
+     * Setups a timer
      *
-     * @param t       the t event
+     * @param t       the timer event
      * @param timeout timout until trigger (in milliseconds)
      * @return unique identifier of the t set
      */
@@ -376,126 +559,104 @@ public abstract class GenericProtocol implements ProtoConsumers {
     }
 
     // --------------------------------- DELIVERERS FROM BABEL ------------------------------------
-    @Override
+
+    /**
+     * Used by babel to deliver channel events to protocols. Do not evoke directly.
+     */
     public final void deliverChannelEvent(CustomChannelEvent event) {
         queue.add(event);
     }
 
-    @Override
+    /**
+     * Used by babel to deliver channel messages to protocols. Do not evoke directly.
+     */
     public final void deliverMessageIn(MessageInEvent msgIn) {
         queue.add(msgIn);
     }
 
-    @Override
+    /**
+     * Used by babel to deliver channel message sent events to protocols. Do not evoke directly.
+     */
     public final void deliverMessageSent(MessageSentEvent event) {
         queue.add(event);
     }
 
-    @Override
+    /**
+     * Used by babel to deliver channel message failed events to protocols. Do not evoke directly.
+     */
     public final void deliverMessageFailed(MessageFailedEvent event) {
         queue.add(event);
     }
 
-    @Override
+    /**
+     * Used by babel to deliver timer events to protocols. Do not evoke directly.
+     */
     public final void deliverTimer(TimerEvent timer) {
         queue.add(timer);
     }
 
-    @Override
+    /**
+     * Used by babel to deliver notifications to protocols. Do not evoke directly.
+     */
     public void deliverNotification(NotificationEvent notification) {
         queue.add(notification);
     }
 
-    @Override
+    /**
+     * Used by babel to deliver requests/replies to protocols. Do not evoke directly.
+     */
     public void deliverIPC(IPCEvent ipc) {
         queue.add(ipc);
     }
 
     /* ------------------ MAIN LOOP -------------------------------------------------*/
 
-    long lastBC = 0, lastBT = 0, lastWC = 0, lastWT = 0, lastET = 0;
-    long lastMI = 0, lastMF = 0, lastMS = 0, lastN = 0, lastCC = 0, lastIPC = 0, lastT = 0;
-
-    protected void debugInfo(ProtoTimer v, long l) {
-        ThreadInfo threadInfo = tmx.getThreadInfo(Thread.currentThread().getId());
-
-        long cBC = threadInfo.getBlockedCount();
-        long cBT = threadInfo.getBlockedTime();
-        long cWC = threadInfo.getWaitedCount();
-        long cWT = threadInfo.getWaitedTime();
-        long cET = nEventsTaken;
-        long cMI = nMessageInEvents;
-        long cMF = nMessageFailedEvents;
-        long cMS = nMessageSentEvents;
-        long cN = nNotificationEvents;
-        long cCC = nCustomChannelEvents;
-        long cIPC = nIPCEvents;
-        long cT = nTimerEvents;
-
-        logger.info("\tbc " + String.format("%,2d",(cBC - lastBC)) + " bt " + String.format("%,2d",(cBT - lastBT)) +
-                " wc " + String.format("%,9d", (cWC - lastWC)) + " wt " + String.format("%,7d", (cWT - lastWT)) +
-                " pend " + String.format("%8d", queue.size()) + " et " + String.format("%,9d", (cET - lastET)) +
-                " MI " + String.format("%,9d", (cMI - lastMI)) + " MF " + String.format("%,2d", (cMF - lastMF)) +
-                " MS " + String.format("%,7d", (cMS - lastMS)) + " N " + String.format("%,7d", (cN - lastN)) +
-                " CC " + String.format("%,2d", (cCC - lastCC)) + " IPC " + String.format("%,9d", (cIPC - lastIPC)) +
-                " T " + String.format("%,2d", (cT - lastT)));
-
-        lastBC = cBC;
-        lastBT = cBT;
-        lastWC = cWC;
-        lastWT = cWT;
-        lastET = cET;
-        lastMI = cMI;
-        lastMF = cMF;
-        lastMS = cMS;
-        lastN = cN;
-        lastCC = cCC;
-        lastIPC = cIPC;
-        lastT = cT;
-    }
-
-    protected long nEventsTaken = 0;
-    protected long nMessageInEvents = 0;
-    protected long nMessageFailedEvents = 0;
-    protected long nMessageSentEvents = 0;
-    protected long nTimerEvents = 0;
-    protected long nNotificationEvents = 0;
-    protected long nIPCEvents = 0;
-    protected long nCustomChannelEvents = 0;
     private void mainLoop() {
         while (true) {
             try {
                 InternalEvent pe = this.queue.take();
-                nEventsTaken++;
-                logger.debug("Received: " + pe);
+                metrics.totalEventsCount++;
+                if (logger.isDebugEnabled())
+                    logger.debug("Handling event: " + pe);
                 switch (pe.getType()) {
                     case MESSAGE_IN_EVENT:
+                        metrics.messagesInCount++;
                         this.handleMessageIn((MessageInEvent) pe);
-                        nMessageInEvents++;
                         break;
                     case MESSAGE_FAILED_EVENT:
+                        metrics.messagesFailedCount++;
                         this.handleMessageFailed((MessageFailedEvent) pe);
-                        nMessageFailedEvents++;
                         break;
                     case MESSAGE_SENT_EVENT:
+                        metrics.messagesSentCount++;
                         this.handleMessageSent((MessageSentEvent) pe);
-                        nMessageSentEvents++;
                         break;
                     case TIMER_EVENT:
+                        metrics.timersCount++;
                         this.handleTimer((TimerEvent) pe);
-                        nTimerEvents++;
                         break;
                     case NOTIFICATION_EVENT:
+                        metrics.notificationsCount++;
                         this.handleNotification((NotificationEvent) pe);
-                        nNotificationEvents++;
                         break;
                     case IPC_EVENT:
-                        this.handleIPC((IPCEvent) pe);
-                        nIPCEvents++;
+                        IPCEvent i = (IPCEvent) pe;
+                        switch (i.getIpc().getType()) {
+                            case REPLY:
+                                metrics.repliesCount++;
+                                handleReply((ProtoReply) i.getIpc(), i.getSenderID());
+                                break;
+                            case REQUEST:
+                                metrics.requestsCount++;
+                                handleRequest((ProtoRequest) i.getIpc(), i.getSenderID());
+                                break;
+                            default:
+                                throw new AssertionError("Ups");
+                        }
                         break;
                     case CUSTOM_CHANNEL_EVENT:
+                        metrics.customChannelEventsCount++;
                         this.handleChannelEvent((CustomChannelEvent) pe);
-                        nCustomChannelEvents++;
                         break;
                     default:
                         throw new AssertionError("Unexpected event received by babel. protocol "
@@ -522,6 +683,8 @@ public abstract class GenericProtocol implements ProtoConsumers {
         MessageFailedHandler h = getChannelOrThrow(e.getChannelId()).messageFailedHandlers.get(msg.getId());
         if (h != null)
             h.onMessageFailed(msg, e.getTo(), e.getMsg().destProto, e.getCause(), e.getChannelId());
+        else if (logger.isDebugEnabled())
+            logger.debug("Discarding unhandled message failed event " + e);
     }
 
     private void handleMessageSent(MessageSentEvent e) {
@@ -535,8 +698,8 @@ public abstract class GenericProtocol implements ProtoConsumers {
         ChannelEventHandler h = getChannelOrThrow(m.getChannelId()).channelEventHandlers.get(m.getEvent().getId());
         if (h != null)
             h.handleEvent(m.getEvent(), m.getChannelId());
-        else
-            logger.debug("Discarding channel event (id " + m.getChannelId() + "): " + m);
+        else if (logger.isDebugEnabled())
+            logger.debug("Discarding unhandled channel event (id " + m.getChannelId() + "): " + m);
     }
 
     private void handleTimer(TimerEvent t) {
@@ -552,7 +715,7 @@ public abstract class GenericProtocol implements ProtoConsumers {
         if (h != null)
             h.uponNotification(n.getNotification(), n.getEmitterID());
         else
-            logger.debug("Discarding unexpected notification (id " + n.getNotification().getId() + "): " + n);
+            logger.warn("Discarding unexpected notification (id " + n.getNotification().getId() + "): " + n);
     }
 
     private void handleRequest(ProtoRequest r, short from) {
@@ -571,30 +734,78 @@ public abstract class GenericProtocol implements ProtoConsumers {
             logger.warn("Discarding unexpected reply (id " + r.getId() + "): " + r);
     }
 
-    private void handleIPC(IPCEvent i) {
-        switch (i.getIpc().getType()) {
-            case REPLY:
-                handleReply((ProtoReply) i.getIpc(), i.getSenderID());
-                break;
-            case REQUEST:
-                handleRequest((ProtoRequest) i.getIpc(), i.getSenderID());
-                break;
-            default:
-                throw new AssertionError("Ups");
-        }
-    }
-
     private static class ChannelHandlers {
-        private Map<Short, MessageInHandler<? extends ProtoMessage>> messageInHandlers;
-        private Map<Short, MessageSentHandler<? extends ProtoMessage>> messageSentHandlers;
-        private Map<Short, MessageFailedHandler<? extends ProtoMessage>> messageFailedHandlers;
-        private Map<Short, ChannelEventHandler<? extends ChannelEvent>> channelEventHandlers;
+        private final Map<Short, MessageInHandler<? extends ProtoMessage>> messageInHandlers;
+        private final Map<Short, MessageSentHandler<? extends ProtoMessage>> messageSentHandlers;
+        private final Map<Short, MessageFailedHandler<? extends ProtoMessage>> messageFailedHandlers;
+        private final Map<Short, ChannelEventHandler<? extends ChannelEvent>> channelEventHandlers;
 
         public ChannelHandlers() {
             this.messageInHandlers = new HashMap<>();
             this.messageSentHandlers = new HashMap<>();
             this.messageFailedHandlers = new HashMap<>();
             this.channelEventHandlers = new HashMap<>();
+        }
+    }
+
+    public static class ProtocolMetrics {
+        private long totalEventsCount, messagesInCount, messagesFailedCount, messagesSentCount, timersCount,
+                notificationsCount, requestsCount, repliesCount, customChannelEventsCount;
+
+        @Override
+        public String toString() {
+            return "ProtocolMetrics{" +
+                    "totalEventsCount=" + totalEventsCount +
+                    ", messagesInCount=" + messagesInCount +
+                    ", messagesFailedCount=" + messagesFailedCount +
+                    ", messagesSentCount=" + messagesSentCount +
+                    ", timersCount=" + timersCount +
+                    ", notificationsCount=" + notificationsCount +
+                    ", requestsCount=" + requestsCount +
+                    ", repliesCount=" + repliesCount +
+                    ", customChannelEventsCount=" + customChannelEventsCount +
+                    '}';
+        }
+
+        public void reset() {
+            totalEventsCount = messagesFailedCount = messagesInCount = messagesSentCount = timersCount =
+                    notificationsCount = repliesCount = requestsCount = customChannelEventsCount = 0;
+        }
+
+        public long getCustomChannelEventsCount() {
+            return customChannelEventsCount;
+        }
+
+        public long getMessagesFailedCount() {
+            return messagesFailedCount;
+        }
+
+        public long getMessagesInCount() {
+            return messagesInCount;
+        }
+
+        public long getMessagesSentCount() {
+            return messagesSentCount;
+        }
+
+        public long getNotificationsCount() {
+            return notificationsCount;
+        }
+
+        public long getRepliesCount() {
+            return repliesCount;
+        }
+
+        public long getRequestsCount() {
+            return requestsCount;
+        }
+
+        public long getTimersCount() {
+            return timersCount;
+        }
+
+        public long getTotalEventsCount() {
+            return totalEventsCount;
         }
     }
 }
