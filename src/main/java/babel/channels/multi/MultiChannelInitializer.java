@@ -2,6 +2,7 @@ package babel.channels.multi;
 
 import babel.generic.ProtoMessage;
 import babel.initializers.ChannelInitializer;
+import babel.internal.BabelMessage;
 import channel.ChannelListener;
 import channel.IChannel;
 import network.ISerializer;
@@ -9,9 +10,9 @@ import network.ISerializer;
 import java.io.IOException;
 import java.util.Properties;
 
-public class MultiChannelInitializer implements ChannelInitializer<IChannel<ProtoMessage>> {
+public class MultiChannelInitializer implements ChannelInitializer<IChannel<BabelMessage>> {
     @Override
-    public MultiChannel initialize(ISerializer<ProtoMessage> serializer, ChannelListener<ProtoMessage> list,
+    public MultiChannel initialize(ISerializer<BabelMessage> serializer, ChannelListener<BabelMessage> list,
                                    Properties properties, short protoId) throws IOException {
         return MultiChannel.getInstance(serializer, list, protoId, properties);
     }

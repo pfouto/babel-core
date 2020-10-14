@@ -1,4 +1,4 @@
-package babel.events;
+package babel.internal;
 
 /**
  * An abstract class that represent a generic event

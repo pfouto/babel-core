@@ -1,7 +1,7 @@
-package babel.generic;
+package babel.core;
 
-import babel.Babel;
-import babel.events.*;
+import babel.generic.*;
+import babel.internal.*;
 import babel.exceptions.HandlerRegistrationException;
 import babel.exceptions.NoSuchProtocolException;
 import babel.handlers.*;
@@ -280,8 +280,9 @@ public abstract class GenericProtocol {
      * @param msgId      the message id
      * @param serializer the serializer for the given message id
      */
-    protected final void registerMessageSerializer(short msgId, ISerializer<? extends ProtoMessage> serializer) {
-        babel.registerSerializer(msgId, serializer);
+    protected final void registerMessageSerializer(int channelId, short msgId,
+                                                   ISerializer<? extends ProtoMessage> serializer) {
+        babel.registerSerializer(channelId, msgId, serializer);
     }
 
     /**
@@ -406,9 +407,7 @@ public abstract class GenericProtocol {
         if (logger.isDebugEnabled())
             logger.debug("Sending: " + msg + " to " + destination + " proto " + destProto +
                     " channel " + channelId);
-        msg.destProto = destProto;
-        msg.sourceProto = this.protoId;
-        babel.sendMessage(channelId, connection, msg, destination);
+        babel.sendMessage(channelId, connection, new BabelMessage(msg, this.protoId, destProto), destination);
     }
 
     /**
@@ -563,49 +562,49 @@ public abstract class GenericProtocol {
     /**
      * Used by babel to deliver channel events to protocols. Do not evoke directly.
      */
-    public final void deliverChannelEvent(CustomChannelEvent event) {
+    final void deliverChannelEvent(CustomChannelEvent event) {
         queue.add(event);
     }
 
     /**
      * Used by babel to deliver channel messages to protocols. Do not evoke directly.
      */
-    public final void deliverMessageIn(MessageInEvent msgIn) {
+    final void deliverMessageIn(MessageInEvent msgIn) {
         queue.add(msgIn);
     }
 
     /**
      * Used by babel to deliver channel message sent events to protocols. Do not evoke directly.
      */
-    public final void deliverMessageSent(MessageSentEvent event) {
+    final void deliverMessageSent(MessageSentEvent event) {
         queue.add(event);
     }
 
     /**
      * Used by babel to deliver channel message failed events to protocols. Do not evoke directly.
      */
-    public final void deliverMessageFailed(MessageFailedEvent event) {
+    final void deliverMessageFailed(MessageFailedEvent event) {
         queue.add(event);
     }
 
     /**
      * Used by babel to deliver timer events to protocols. Do not evoke directly.
      */
-    public final void deliverTimer(TimerEvent timer) {
+    final void deliverTimer(TimerEvent timer) {
         queue.add(timer);
     }
 
     /**
      * Used by babel to deliver notifications to protocols. Do not evoke directly.
      */
-    public void deliverNotification(NotificationEvent notification) {
+    final void deliverNotification(NotificationEvent notification) {
         queue.add(notification);
     }
 
     /**
      * Used by babel to deliver requests/replies to protocols. Do not evoke directly.
      */
-    public void deliverIPC(IPCEvent ipc) {
+    final void deliverIPC(IPCEvent ipc) {
         queue.add(ipc);
     }
 
@@ -670,28 +669,28 @@ public abstract class GenericProtocol {
 
     //TODO try catch (ClassCastException)
     private void handleMessageIn(MessageInEvent m) {
-        ProtoMessage msg = m.getMsg();
-        MessageInHandler h = getChannelOrThrow(m.getChannelId()).messageInHandlers.get(msg.getId());
+        BabelMessage msg = m.getMsg();
+        MessageInHandler h = getChannelOrThrow(m.getChannelId()).messageInHandlers.get(msg.getMessage().getId());
         if (h != null)
-            h.receive(msg, m.getFrom(), m.getMsg().sourceProto, m.getChannelId());
+            h.receive(msg.getMessage(), m.getFrom(), msg.getSourceProto(), m.getChannelId());
         else
-            logger.warn("Discarding unexpected message (id " + m.getMsg().getId() + "): " + m);
+            logger.warn("Discarding unexpected message (id " + msg.getMessage().getId() + "): " + m);
     }
 
     private void handleMessageFailed(MessageFailedEvent e) {
-        ProtoMessage msg = e.getMsg();
-        MessageFailedHandler h = getChannelOrThrow(e.getChannelId()).messageFailedHandlers.get(msg.getId());
+        BabelMessage msg = e.getMsg();
+        MessageFailedHandler h = getChannelOrThrow(e.getChannelId()).messageFailedHandlers.get(msg.getMessage().getId());
         if (h != null)
-            h.onMessageFailed(msg, e.getTo(), e.getMsg().destProto, e.getCause(), e.getChannelId());
+            h.onMessageFailed(msg.getMessage(), e.getTo(), msg.getDestProto(), e.getCause(), e.getChannelId());
         else if (logger.isDebugEnabled())
             logger.debug("Discarding unhandled message failed event " + e);
     }
 
     private void handleMessageSent(MessageSentEvent e) {
-        ProtoMessage msg = e.getMsg();
-        MessageSentHandler h = getChannelOrThrow(e.getChannelId()).messageSentHandlers.get(msg.getId());
+        BabelMessage msg = e.getMsg();
+        MessageSentHandler h = getChannelOrThrow(e.getChannelId()).messageSentHandlers.get(msg.getMessage().getId());
         if (h != null)
-            h.onMessageSent(msg, e.getTo(), e.getMsg().destProto, e.getChannelId());
+            h.onMessageSent(msg.getMessage(), e.getTo(), msg.getDestProto(), e.getChannelId());
     }
 
     private void handleChannelEvent(CustomChannelEvent m) {

@@ -1,19 +1,20 @@
-package babel.events;
+package babel.internal;
 
-import babel.generic.GenericProtocol;
+import babel.core.GenericProtocol;
 import babel.generic.ProtoTimer;
 
 import java.util.Comparator;
 
 public class TimerEvent extends InternalEvent implements Comparable<TimerEvent>, Comparator<TimerEvent> {
 
-    private long uuid;
-    private ProtoTimer timer;
+    private final long uuid;
+    private final ProtoTimer timer;
 
     private final GenericProtocol consumer;
-    private long triggerTime;
     private final boolean periodic;
     private final long period;
+
+    private long triggerTime;
 
     public TimerEvent(ProtoTimer timer, long uuid, GenericProtocol consumer, long triggerTime, boolean periodic,
                       long period) {

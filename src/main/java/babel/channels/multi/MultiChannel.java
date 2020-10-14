@@ -1,6 +1,6 @@
 package babel.channels.multi;
 
-import babel.generic.ProtoMessage;
+import babel.internal.BabelMessage;
 import channel.ChannelListener;
 import channel.base.SingleThreadedBiChannel;
 import network.AttributeValidator;
@@ -20,7 +20,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
-public class MultiChannel extends SingleThreadedBiChannel<ProtoMessage, ProtoMessage> implements AttributeValidator {
+public class MultiChannel extends SingleThreadedBiChannel<BabelMessage, BabelMessage> implements AttributeValidator {
 
     private static final Logger logger = LogManager.getLogger(MultiChannel.class);
     private static final short TCP_MAGIC_NUMBER = 0x2727;
@@ -29,8 +29,8 @@ public class MultiChannel extends SingleThreadedBiChannel<ProtoMessage, ProtoMes
 
     private static final int DEFAULT_PORT = 12727; //Decimal Ascii for DEL (127) ESC (27)
 
-    private final NetworkManager<ProtoMessage> network;
-    private final Map<Short, ChannelListener<ProtoMessage>> listeners;
+    private final NetworkManager<BabelMessage> network;
+    private final Map<Short, ChannelListener<BabelMessage>> listeners;
 
     private Attributes attributes;
 
@@ -38,8 +38,8 @@ public class MultiChannel extends SingleThreadedBiChannel<ProtoMessage, ProtoMes
 
     private static MultiChannel multiChannelInstance = null;
 
-    public static MultiChannel getInstance(ISerializer<ProtoMessage> serializer,
-                              ChannelListener<ProtoMessage> list,
+    public static MultiChannel getInstance(ISerializer<BabelMessage> serializer,
+                              ChannelListener<BabelMessage> list,
                               short protoId,
                               Properties properties)  throws IOException {
         if(multiChannelInstance == null)
@@ -49,15 +49,13 @@ public class MultiChannel extends SingleThreadedBiChannel<ProtoMessage, ProtoMes
         return multiChannelInstance;
     }
 
-    private void addListener(short protoId, ChannelListener<ProtoMessage> list) {
+    private void addListener(short protoId, ChannelListener<BabelMessage> list) {
         if(this.listeners.putIfAbsent(protoId, list) != null)
             throw new RuntimeException("Protocol with id " + protoId + " asked for Multi Channel twice");
     }
 
 
-    private MultiChannel(ISerializer<ProtoMessage> serializer,
-                         Properties properties)
-            throws IOException {
+    private MultiChannel(ISerializer<BabelMessage> serializer, Properties properties) throws IOException {
 
         super("MultiChannel");
         this.listeners = new HashMap<>();
@@ -89,7 +87,7 @@ public class MultiChannel extends SingleThreadedBiChannel<ProtoMessage, ProtoMes
     }
 
     @Override
-    protected void onInboundConnectionUp(Connection<ProtoMessage> connection) {
+    protected void onInboundConnectionUp(Connection<BabelMessage> connection) {
         Host clientSocket;
         short protoId;
         try {
@@ -109,7 +107,7 @@ public class MultiChannel extends SingleThreadedBiChannel<ProtoMessage, ProtoMes
     }
 
     @Override
-    protected void onInboundConnectionDown(Connection<ProtoMessage> connection, Throwable cause) {
+    protected void onInboundConnectionDown(Connection<BabelMessage> connection, Throwable cause) {
         short protoId = connection.getPeerAttributes().getShort(ProtoConnections.PROTO_ID);
         ProtoConnections protoConnections = protocolConnections.get((int) protoId);
         if(protoConnections != null) protoConnections.removeInboundConnection(connection, cause);
@@ -129,7 +127,7 @@ public class MultiChannel extends SingleThreadedBiChannel<ProtoMessage, ProtoMes
     }
 
     @Override
-    protected void onOutboundConnectionUp(Connection<ProtoMessage> connection) {
+    protected void onOutboundConnectionUp(Connection<BabelMessage> connection) {
         short protoId = connection.getSelfAttributes().getShort(ProtoConnections.PROTO_ID);
         protocolConnections.computeIfAbsent((int) protoId,
                 k-> new ProtoConnections(loop, protoId, attributes, listeners.get(protoId), network, this))
@@ -138,14 +136,14 @@ public class MultiChannel extends SingleThreadedBiChannel<ProtoMessage, ProtoMes
     }
 
     @Override
-    protected void onOutboundConnectionDown(Connection<ProtoMessage> connection, Throwable cause) {
+    protected void onOutboundConnectionDown(Connection<BabelMessage> connection, Throwable cause) {
         short protoId = connection.getSelfAttributes().getShort(ProtoConnections.PROTO_ID);
         ProtoConnections protoConnections = protocolConnections.get((int) protoId);
         if(protoConnections != null) protoConnections.removeOutboundConnection(connection, cause);
     }
 
     @Override
-    protected void onOutboundConnectionFailed(Connection<ProtoMessage> connection, Throwable cause) {
+    protected void onOutboundConnectionFailed(Connection<BabelMessage> connection, Throwable cause) {
         short protoId = connection.getSelfAttributes().getShort(ProtoConnections.PROTO_ID);
         ProtoConnections protoConnections = protocolConnections.get((int) protoId);
         if(protoConnections != null) protoConnections.failedOutboundConnection(connection, cause);
@@ -153,7 +151,7 @@ public class MultiChannel extends SingleThreadedBiChannel<ProtoMessage, ProtoMes
     }
 
     @Override
-    protected void onSendMessage(ProtoMessage protoMessage, Host host, int mode) {
+    protected void onSendMessage(BabelMessage protoMessage, Host host, int mode) {
         protocolConnections.computeIfAbsent((int)protoMessage.getDestProto(),
                 k-> new ProtoConnections(loop, protoMessage.getDestProto(), attributes,
                         listeners.get(protoMessage.getDestProto()), network, this))
@@ -168,7 +166,7 @@ public class MultiChannel extends SingleThreadedBiChannel<ProtoMessage, ProtoMes
     }
 
     @Override
-    protected void onDeliverMessage(ProtoMessage protoMessage, Connection<ProtoMessage> connection) {
+    protected void onDeliverMessage(BabelMessage protoMessage, Connection<BabelMessage> connection) {
         ProtoConnections protoConnections = protocolConnections.get((int)protoMessage.getSourceProto());
         if (protoConnections != null) protoConnections.deliverMessage(protoMessage, connection);
     }

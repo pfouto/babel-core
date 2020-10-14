@@ -1,6 +1,6 @@
 package babel.channels.multi;
 
-import babel.generic.ProtoMessage;
+import babel.internal.BabelMessage;
 import channel.ChannelListener;
 import channel.base.SingleThreadedBiChannel;
 import channel.tcp.ConnectionState;
@@ -31,20 +31,20 @@ class ProtoConnections {
 
     //Host represents the client server socket, not the client tcp connection address!
     //client connection address is in connection.getPeer
-    private final Map<Host, LinkedList<Connection<ProtoMessage>>> inConnections;
-    private final Map<Host, ConnectionState<ProtoMessage>> outConnections;
+    private final Map<Host, LinkedList<Connection<BabelMessage>>> inConnections;
+    private final Map<Host, ConnectionState<BabelMessage>> outConnections;
 
 
-    private final SingleThreadedBiChannel<ProtoMessage, ProtoMessage> channel;
-    private final NetworkManager<ProtoMessage> network;
-    private final ChannelListener<ProtoMessage> listener;
+    private final SingleThreadedBiChannel<BabelMessage, BabelMessage> channel;
+    private final NetworkManager<BabelMessage> network;
+    private final ChannelListener<BabelMessage> listener;
     private final DefaultEventExecutor loop;
     private final Attributes attributes;
 
     ProtoConnections(DefaultEventExecutor loop, short protoId, Attributes attributes,
-                     ChannelListener<ProtoMessage> listener,
-                     NetworkManager<ProtoMessage> network,
-                     SingleThreadedBiChannel<ProtoMessage, ProtoMessage> channel) {
+                     ChannelListener<BabelMessage> listener,
+                     NetworkManager<BabelMessage> network,
+                     SingleThreadedBiChannel<BabelMessage, BabelMessage> channel) {
 
         this.channel = channel;
         this.network = network;
@@ -58,11 +58,11 @@ class ProtoConnections {
         outConnections = new HashMap<>();
     }
 
-    void sendMessage(ProtoMessage msg, Host peer, int connection) {
+    void sendMessage(BabelMessage msg, Host peer, int connection) {
         logger.debug("SendMessage " + msg + " " + peer + " " + (connection == CONNECTION_IN ? "IN" : "OUT"));
         if (connection <= CONNECTION_OUT) {
 
-            ConnectionState<ProtoMessage> conState = outConnections.computeIfAbsent(peer, k -> {
+            ConnectionState<BabelMessage> conState = outConnections.computeIfAbsent(peer, k -> {
                 logger.debug("onSendMessage creating connection to: " + peer);
                 return new ConnectionState<>(network.createConnection(peer, attributes, channel));
             });
@@ -79,7 +79,7 @@ class ProtoConnections {
             }
 
         } else if (connection == CONNECTION_IN) {
-            LinkedList<Connection<ProtoMessage>> inConnList = inConnections.get(peer);
+            LinkedList<Connection<BabelMessage>> inConnList = inConnections.get(peer);
             if (inConnList != null)
                 sendWithListener(msg, peer, inConnList.getLast());
             else
@@ -91,7 +91,7 @@ class ProtoConnections {
         }
     }
 
-    private void sendWithListener(ProtoMessage msg, Host peer, Connection<ProtoMessage> established) {
+    private void sendWithListener(BabelMessage msg, Host peer, Connection<BabelMessage> established) {
         Promise<Void> promise = loop.newPromise();
         promise.addListener(future -> {
             if (future.isSuccess()) listener.messageSent(msg, peer);
@@ -102,7 +102,7 @@ class ProtoConnections {
 
     void disconnect(Host peer) {
         logger.debug("CloseConnection " + peer);
-        ConnectionState<ProtoMessage> conState = outConnections.get(peer);
+        ConnectionState<BabelMessage> conState = outConnections.get(peer);
         if (conState != null) {
             if (conState.getState() == ConnectionState.State.CONNECTED || conState.getState() == ConnectionState.State.CONNECTING
                     || conState.getState() == ConnectionState.State.DISCONNECTING_RECONNECT) {
@@ -113,8 +113,8 @@ class ProtoConnections {
         }
     }
 
-    void addInboundConnection(Host clientSocket, Connection<ProtoMessage> connection) {
-        LinkedList<Connection<ProtoMessage>> inConnList = inConnections.computeIfAbsent(clientSocket, k -> new LinkedList<>());
+    void addInboundConnection(Host clientSocket, Connection<BabelMessage> connection) {
+        LinkedList<Connection<BabelMessage>> inConnList = inConnections.computeIfAbsent(clientSocket, k -> new LinkedList<>());
         inConnList.add(connection);
         if (inConnList.size() == 1) {
             logger.debug("InboundConnectionUp " + clientSocket);
@@ -124,7 +124,7 @@ class ProtoConnections {
         }
     }
 
-    void removeInboundConnection(Connection<ProtoMessage> connection, Throwable cause) {
+    void removeInboundConnection(Connection<BabelMessage> connection, Throwable cause) {
         Host clientSocket;
         try {
             clientSocket = connection.getPeerAttributes().getHost(LISTEN_ADDRESS_ATTRIBUTE);
@@ -134,7 +134,7 @@ class ProtoConnections {
             return;
         }
 
-        LinkedList<Connection<ProtoMessage>> inConnList = inConnections.get(clientSocket);
+        LinkedList<Connection<BabelMessage>> inConnList = inConnections.get(clientSocket);
         if (inConnList == null || inConnList.isEmpty())
             throw new AssertionError("No connections in InboundConnectionDown " + clientSocket);
         if (!inConnList.remove(connection))
@@ -149,9 +149,9 @@ class ProtoConnections {
         }
     }
 
-    void addOutboundConnection(Connection<ProtoMessage> connection) {
+    void addOutboundConnection(Connection<BabelMessage> connection) {
         logger.debug("OutboundConnectionUp " + connection.getPeer());
-        ConnectionState<ProtoMessage> conState = outConnections.get(connection.getPeer());
+        ConnectionState<BabelMessage> conState = outConnections.get(connection.getPeer());
         if (conState == null) {
             throw new AssertionError("ConnectionUp with no conState: " + connection);
         } else if (conState.getState() == ConnectionState.State.CONNECTED) {
@@ -161,14 +161,12 @@ class ProtoConnections {
             conState.getQueue().forEach(m -> sendWithListener(m, connection.getPeer(), connection));
             conState.getQueue().clear();
             listener.deliverEvent(new OutConnectionUp(connection.getPeer()));
-        } else { //DISCONNECTING OR DISCONNECTING_RECONNECT
-            //do nothing
         }
     }
 
-    void removeOutboundConnection(Connection<ProtoMessage> connection, Throwable cause) {
+    void removeOutboundConnection(Connection<BabelMessage> connection, Throwable cause) {
         logger.debug("OutboundConnectionDown " + connection.getPeer() + (cause != null ? (" " + cause) : ""));
-        ConnectionState<ProtoMessage> conState = outConnections.remove(connection.getPeer());
+        ConnectionState<BabelMessage> conState = outConnections.remove(connection.getPeer());
         if (conState == null) {
             throw new AssertionError("ConnectionDown with no conState: " + connection);
         } else if (conState.getState() == ConnectionState.State.CONNECTING) {
@@ -182,10 +180,10 @@ class ProtoConnections {
 
     }
 
-    void failedOutboundConnection(Connection<ProtoMessage> connection, Throwable cause) {
+    void failedOutboundConnection(Connection<BabelMessage> connection, Throwable cause) {
         logger.debug("OutboundConnectionFailed " + connection.getPeer() + (cause != null ? (" " + cause) : ""));
 
-        ConnectionState<ProtoMessage> conState = outConnections.remove(connection.getPeer());
+        ConnectionState<BabelMessage> conState = outConnections.remove(connection.getPeer());
         if (conState == null) {
             throw new AssertionError("ConnectionFailed with no conState: " + connection);
         } else if (conState.getState() == ConnectionState.State.CONNECTING) {
@@ -198,7 +196,7 @@ class ProtoConnections {
         }
     }
 
-    void deliverMessage(ProtoMessage msg, Connection<ProtoMessage> connection) {
+    void deliverMessage(BabelMessage msg, Connection<BabelMessage> connection) {
         Host host;
         if (connection.isInbound())
             try {

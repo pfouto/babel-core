@@ -1,7 +1,6 @@
-package babel.events;
+package babel.internal;
 
-import babel.generic.GenericProtocol;
-import babel.generic.ProtoMessage;
+import babel.core.GenericProtocol;
 import network.data.Host;
 
 /**
@@ -10,27 +9,30 @@ import network.data.Host;
  * @see InternalEvent
  * @see GenericProtocol
  */
-public class MessageSentEvent extends InternalEvent {
+public class MessageFailedEvent extends InternalEvent {
 
-    private final ProtoMessage msg;
+    private final BabelMessage msg;
     private final Host to;
     private final int channelId;
+    private final Throwable cause;
 
     /**
      * Create a protocol message event with the provided numeric identifier
      */
-    public MessageSentEvent(ProtoMessage msg, Host to, int channelId) {
-        super(EventType.MESSAGE_SENT_EVENT);
+    public MessageFailedEvent(BabelMessage msg, Host to, Throwable cause, int channelId) {
+        super(EventType.MESSAGE_FAILED_EVENT);
         this.to = to;
         this.msg = msg;
+        this.cause = cause;
         this.channelId = channelId;
     }
 
     @Override
     public String toString() {
-        return "MessageSentEvent{" +
+        return "MessageFailedEvent{" +
                 "msg=" + msg +
                 ", to=" + to +
+                ", cause=" + cause +
                 ", channelId=" + channelId +
                 '}';
     }
@@ -43,7 +45,11 @@ public class MessageSentEvent extends InternalEvent {
         return channelId;
     }
 
-    public ProtoMessage getMsg() {
+    public Throwable getCause() {
+        return cause;
+    }
+
+    public BabelMessage getMsg() {
         return msg;
     }
 

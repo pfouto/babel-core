@@ -1,6 +1,6 @@
-package babel.events;
+package babel.internal;
 
-import babel.generic.GenericProtocol;
+import babel.core.GenericProtocol;
 import channel.ChannelEvent;
 
 /**
@@ -11,7 +11,7 @@ import channel.ChannelEvent;
  */
 public class CustomChannelEvent extends InternalEvent {
 
-    ChannelEvent event;
+    private final ChannelEvent event;
     private final int channelId;
 
     /**

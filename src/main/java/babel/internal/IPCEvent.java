@@ -1,4 +1,4 @@
-package babel.events;
+package babel.internal;
 
 import babel.generic.ProtoIPC;
 

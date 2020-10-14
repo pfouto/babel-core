@@ -1,6 +1,7 @@
 package babel.initializers;
 
 import babel.generic.ProtoMessage;
+import babel.internal.BabelMessage;
 import channel.ChannelListener;
 import channel.simpleclientserver.SimpleServerChannel;
 import network.ISerializer;
@@ -8,11 +9,11 @@ import network.ISerializer;
 import java.net.UnknownHostException;
 import java.util.Properties;
 
-public class SimpleServerChannelInitializer implements ChannelInitializer<SimpleServerChannel<ProtoMessage>> {
+public class SimpleServerChannelInitializer implements ChannelInitializer<SimpleServerChannel<BabelMessage>> {
 
     @Override
-    public SimpleServerChannel<ProtoMessage> initialize(ISerializer<ProtoMessage> serializer,
-                                                        ChannelListener<ProtoMessage> list,
+    public SimpleServerChannel<BabelMessage> initialize(ISerializer<BabelMessage> serializer,
+                                                        ChannelListener<BabelMessage> list,
                                                         Properties properties, short protoId) throws UnknownHostException {
         return new SimpleServerChannel<>(serializer, list, properties);
     }
