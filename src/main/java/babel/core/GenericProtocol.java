@@ -70,7 +70,7 @@ public abstract class GenericProtocol {
 
         //TODO change to event loop (simplifies the deliver->poll->handle process)
         //TODO only change if performance better
-        this.executionThread = new Thread(this::mainLoop, protoId + " - " + protoName);
+        this.executionThread = new Thread(this::mainLoop, protoId + "-" + protoName);
         channels = new HashMap<>();
         defaultChannel = -1;
 
@@ -754,15 +754,15 @@ public abstract class GenericProtocol {
         @Override
         public String toString() {
             return "ProtocolMetrics{" +
-                    "totalEventsCount=" + totalEventsCount +
-                    ", messagesInCount=" + messagesInCount +
-                    ", messagesFailedCount=" + messagesFailedCount +
-                    ", messagesSentCount=" + messagesSentCount +
-                    ", timersCount=" + timersCount +
-                    ", notificationsCount=" + notificationsCount +
-                    ", requestsCount=" + requestsCount +
-                    ", repliesCount=" + repliesCount +
-                    ", customChannelEventsCount=" + customChannelEventsCount +
+                    "totalEvents=" + totalEventsCount +
+                    ", messagesIn=" + messagesInCount +
+                    ", messagesFailed=" + messagesFailedCount +
+                    ", messagesSent=" + messagesSentCount +
+                    ", timers=" + timersCount +
+                    ", notifications=" + notificationsCount +
+                    ", requests=" + requestsCount +
+                    ", replies=" + repliesCount +
+                    ", customChannelEvents=" + customChannelEventsCount +
                     '}';
         }
 

@@ -374,19 +374,24 @@ public class Babel {
      * <p>
      * Properties should be provided as:   propertyName=value
      *
-     * @param propsFilename the path to the properties file
+     * @param defaultConfigFile the path to the default properties file
      * @param args          console parameters
      * @return the configurations built
      * @throws IOException               if the provided file does not exist
      * @throws InvalidParameterException if the console parameters are not in the format: prop=value
      */
-    public Properties loadConfig(String propsFilename, String[] args)
+    public static Properties loadConfig(String[] args, String defaultConfigFile)
             throws IOException, InvalidParameterException {
+
+        List<String> argsList = new ArrayList<>();
+        Collections.addAll(argsList, args);
+        String configFile = extractConfigFileFromArguments(argsList, defaultConfigFile);
+
         Properties configuration = new Properties();
-        if (propsFilename != null)
-            configuration.load(new FileInputStream(propsFilename));
+        if (configFile != null)
+            configuration.load(new FileInputStream(configFile));
         //Override with launch parameter props
-        for (String arg : args) {
+        for (String arg : argsList) {
             String[] property = arg.split("=");
             if (property.length == 2)
                 configuration.setProperty(property[0], property[1]);
@@ -395,4 +400,23 @@ public class Babel {
         }
         return configuration;
     }
+
+    private static String extractConfigFileFromArguments(List<String> args, String defaultConfigFile){
+        String config = defaultConfigFile;
+        Iterator<String> iter = args.iterator();
+        while (iter.hasNext()) {
+            String param = iter.next();
+            if (param.equals("-conf")) {
+                if (iter.hasNext()) {
+                    iter.remove();
+                    config = iter.next();
+                    iter.remove();
+                }
+                break;
+            }
+        }
+        return config;
+    }
+
+
 }

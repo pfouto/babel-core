@@ -8,6 +8,15 @@ public class BabelMessage {
     private final short sourceProto;
     private final short destProto;
 
+    @Override
+    public String toString() {
+        return "BabelMessage{" +
+                "message=" + message +
+                ", sourceProto=" + sourceProto +
+                ", destProto=" + destProto +
+                '}';
+    }
+
     public BabelMessage(ProtoMessage message, short sourceProto, short destProto) {
         this.message = message;
         this.sourceProto = sourceProto;
