@@ -326,8 +326,10 @@ public class Babel {
      */
     long setupPeriodicTimer(ProtoTimer t, GenericProtocol consumer, long first, long period) {
         long id = timersCounter.incrementAndGet();
-        timerQueue.add(new TimerEvent(t, id, consumer,
-                System.currentTimeMillis() + first, true, period));
+        TimerEvent newTimer = new TimerEvent(t, id, consumer,
+                System.currentTimeMillis() + first, true, period);
+        allTimers.put(newTimer.getUuid(), newTimer);
+        timerQueue.add(newTimer);
         timersThread.interrupt();
         return id;
     }
