@@ -1,5 +1,8 @@
 package babel.generic;
 
+/**
+ * Abstract Timer class to be extended by protocol-specific timers.
+ */
 public abstract class ProtoTimer implements Cloneable {
 
     private final short id;

@@ -1,5 +1,8 @@
 package babel.generic;
 
+/**
+ * Abstract Request class to be extended by protocol-specific requests.
+ */
 public abstract class ProtoRequest extends ProtoIPC{
 
     private final short id;

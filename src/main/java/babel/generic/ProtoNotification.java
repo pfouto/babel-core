@@ -1,5 +1,8 @@
 package babel.generic;
 
+/**
+ * Abstract Notification class to be extended by protocol-specific notifications.
+ */
 public abstract class ProtoNotification {
 
     private final short id;

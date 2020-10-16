@@ -371,10 +371,11 @@ public class Babel {
     // ---------------------------- CONFIG
 
     /**
-     * Reads the provided properties files and builds a configuration
-     * Console parameters override or add properties in the provided file
+     * Reads either the default or the given properties file (the file can be given with the argument -config)
+     * Builds a configuration file with the properties from the file and then merges ad-hoc properties given
+     * in the arguments.
      * <p>
-     * Properties should be provided as:   propertyName=value
+     * Argument properties should be provided as:   propertyName=value
      *
      * @param defaultConfigFile the path to the default properties file
      * @param args          console parameters
