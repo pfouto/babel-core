@@ -331,12 +331,12 @@ public abstract class GenericProtocol {
      * Sends a message to a specified destination using the given channel.
      * May require the use of {@link #openConnection(Host)} beforehand.
      *
-     * @param channel     the channel to send the message through
+     * @param channelId     the channel to send the message through
      * @param msg         the message to send
      * @param destination the ip/port to send the message to
      */
-    protected final void sendMessage(int channel, ProtoMessage msg, Host destination) {
-        sendMessage(channel, msg, this.protoId, destination, 0);
+    protected final void sendMessage(int channelId, ProtoMessage msg, Host destination) {
+        sendMessage(channelId, msg, this.protoId, destination, 0);
     }
 
     /**
@@ -367,13 +367,13 @@ public abstract class GenericProtocol {
      * Sends a message to a specified destination, using a specific connection in a given channel.
      * May require the use of {@link #openConnection(Host)} beforehand.
      *
-     * @param channel     the channel to send the message through
+     * @param channelId     the channel to send the message through
      * @param connection  the channel-specific connection to use.
      * @param msg         the message to send
      * @param destination the ip/port to send the message to
      */
-    protected final void sendMessage(int channel, ProtoMessage msg, Host destination, int connection) {
-        sendMessage(channel, msg, this.protoId, destination, connection);
+    protected final void sendMessage(int channelId, ProtoMessage msg, Host destination, int connection) {
+        sendMessage(channelId, msg, this.protoId, destination, connection);
     }
 
     /**
