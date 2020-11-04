@@ -27,6 +27,9 @@ public class BabelMessageSerializer implements ISerializer<BabelMessage> {
         byteBuf.writeShort(msg.getDestProto());
         byteBuf.writeShort(msg.getMessage().getId());
         ISerializer iSerializer = serializers.get(msg.getMessage().getId());
+        if(iSerializer == null){
+            throw new AssertionError("No serializer found for message id " + msg.getMessage().getId());
+        }
         iSerializer.serialize(msg.getMessage(), byteBuf);
     }
 
@@ -35,7 +38,11 @@ public class BabelMessageSerializer implements ISerializer<BabelMessage> {
         short source = byteBuf.readShort();
         short dest = byteBuf.readShort();
         short id = byteBuf.readShort();
-        ProtoMessage deserialize = serializers.get(id).deserialize(byteBuf);
+        ISerializer<? extends ProtoMessage> iSerializer = serializers.get(id);
+        if(iSerializer == null){
+            throw new AssertionError("No deserializer found for message id " + id);
+        }
+        ProtoMessage deserialize = iSerializer.deserialize(byteBuf);
         return new BabelMessage(deserialize, source, dest);
     }
 }
