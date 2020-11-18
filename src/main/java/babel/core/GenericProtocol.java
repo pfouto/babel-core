@@ -567,9 +567,9 @@ public abstract class GenericProtocol {
     }
 
     /**
-     * Used by babel to deliver channel messages to protocols. Do not evoke directly.
+     * Used by babel to deliver channel messages to protocols.
      */
-    final void deliverMessageIn(MessageInEvent msgIn) {
+    final protected void deliverMessageIn(MessageInEvent msgIn) {
         queue.add(msgIn);
     }
 
