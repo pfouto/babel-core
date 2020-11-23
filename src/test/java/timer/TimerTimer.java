@@ -1,6 +1,6 @@
 package timer;
 
-import babel.generic.ProtoTimer;
+import pt.unl.fct.di.novasys.babel.generic.ProtoTimer;
 
 public class TimerTimer extends ProtoTimer {
 

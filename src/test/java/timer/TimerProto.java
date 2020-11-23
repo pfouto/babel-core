@@ -1,17 +1,13 @@
 package timer;
 
-import babel.core.GenericProtocol;
-import babel.exceptions.HandlerRegistrationException;
-import babel.metrics.Counter;
-import babel.metrics.Instant;
-import babel.metrics.MetricsManager;
-import babel.metrics.Reducer;
+import pt.unl.fct.di.novasys.babel.core.GenericProtocol;
+import pt.unl.fct.di.novasys.babel.exceptions.HandlerRegistrationException;
+import pt.unl.fct.di.novasys.babel.metrics.Instant;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 import java.util.Properties;
-import java.util.Random;
 
 public class TimerProto extends GenericProtocol {
 

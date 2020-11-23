@@ -26,7 +26,7 @@
         <Logger level="info" name="channel"/>
         <Logger level="info" name="babel"/-->
 
-        <Logger name="babel.metrics" level="debug">
+        <Logger name="pt.unl.fct.di.novasys.babel.metrics" level="debug">
             <AppenderRef ref="MetricsFile" level="all"/>
         </Logger>
 
