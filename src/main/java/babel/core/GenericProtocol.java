@@ -5,6 +5,8 @@ import babel.internal.*;
 import babel.exceptions.HandlerRegistrationException;
 import babel.exceptions.NoSuchProtocolException;
 import babel.handlers.*;
+import babel.metrics.Metric;
+import babel.metrics.MetricsManager;
 import channel.ChannelEvent;
 import network.ISerializer;
 import network.data.Host;
@@ -132,7 +134,15 @@ public abstract class GenericProtocol {
         return metrics;
     }
 
+    protected long getMillisSinceBabelStart(){
+        return babel.getMillisSinceStart();
+    }
+
     /* ------------------ PROTOCOL REGISTERS -------------------------------------------------*/
+
+    protected void registerMetric(Metric m){
+        MetricsManager.getInstance().registerMetric(m);
+    }
 
     private <V> void registerHandler(short id, V handler, Map<Short, V> handlerMap)
             throws HandlerRegistrationException {

@@ -9,6 +9,7 @@ import babel.exceptions.NoSuchProtocolException;
 import babel.exceptions.ProtocolAlreadyExistsException;
 import babel.generic.*;
 import babel.initializers.*;
+import babel.metrics.MetricsManager;
 import channel.IChannel;
 import channel.simpleclientserver.SimpleClientChannel;
 import channel.simpleclientserver.SimpleServerChannel;
@@ -67,6 +68,7 @@ public class Babel {
 
     /**
      * Returns the instance of the Babel Runtime
+     *
      * @return the Babel instance
      */
     public static synchronized Babel getInstance() {
@@ -92,6 +94,9 @@ public class Babel {
     private final Map<Integer,
             Triple<IChannel<BabelMessage>, ChannelToProtoForwarder, BabelMessageSerializer>> channelMap;
     private final AtomicInteger channelIdGenerator;
+
+    private long startTime;
+    private boolean started = false;
 
     private Babel() {
         //Protocols
@@ -120,7 +125,7 @@ public class Babel {
 
     private void timerLoop() {
         while (true) {
-            long now = System.currentTimeMillis();
+            long now = getMillisSinceStart();
             TimerEvent tE = timerQueue.peek();
 
             long toSleep = tE != null ? tE.getTriggerTime() - now : Long.MAX_VALUE;
@@ -146,6 +151,9 @@ public class Babel {
      * Begins the execution of all protocols registered in Babel
      */
     public void start() {
+        startTime = System.currentTimeMillis();
+        started = true;
+        MetricsManager.getInstance().start();
         timersThread.start();
         protocolMap.values().forEach(GenericProtocol::start);
     }
@@ -327,7 +335,7 @@ public class Babel {
     long setupPeriodicTimer(ProtoTimer t, GenericProtocol consumer, long first, long period) {
         long id = timersCounter.incrementAndGet();
         TimerEvent newTimer = new TimerEvent(t, id, consumer,
-                System.currentTimeMillis() + first, true, period);
+                getMillisSinceStart() + first, true, period);
         allTimers.put(newTimer.getUuid(), newTimer);
         timerQueue.add(newTimer);
         timersThread.interrupt();
@@ -344,7 +352,7 @@ public class Babel {
     long setupTimer(ProtoTimer t, GenericProtocol consumer, long timeout) {
         long id = timersCounter.incrementAndGet();
         TimerEvent newTimer = new TimerEvent(t, id, consumer,
-                System.currentTimeMillis() + timeout, false, -1);
+                getMillisSinceStart() + timeout, false, -1);
         timerQueue.add(newTimer);
         allTimers.put(newTimer.getUuid(), newTimer);
         timersThread.interrupt();
@@ -378,7 +386,7 @@ public class Babel {
      * Argument properties should be provided as:   propertyName=value
      *
      * @param defaultConfigFile the path to the default properties file
-     * @param args          console parameters
+     * @param args              console parameters
      * @return the configurations built
      * @throws IOException               if the provided file does not exist
      * @throws InvalidParameterException if the console parameters are not in the format: prop=value
@@ -404,7 +412,7 @@ public class Babel {
         return configuration;
     }
 
-    private static String extractConfigFileFromArguments(List<String> args, String defaultConfigFile){
+    private static String extractConfigFileFromArguments(List<String> args, String defaultConfigFile) {
         String config = defaultConfigFile;
         Iterator<String> iter = args.iterator();
         while (iter.hasNext()) {
@@ -421,5 +429,8 @@ public class Babel {
         return config;
     }
 
+    public long getMillisSinceStart() {
+        return started ? System.currentTimeMillis() - startTime : 0;
+    }
 
 }

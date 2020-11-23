@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="INFO" shutdownHook="disable">
+    <Appenders>
+        <Console name="Console" target="SYSTEM_OUT">
+            <PatternLayout pattern="%highlight{%level{length=1}[%d{HH:mm:ss,SSS}] [%t]%logger{0}:} %msg%n"/>
+        </Console>
+
+        <File name="MyFile" fileName="my_file.log" append="false" immediateFlush="true">
+            <PatternLayout pattern="%highlight{%level{length=1}[%d{HH:mm:ss,SSS}] [%t]%logger{0}:} %msg%n"/>
+        </File>
+
+        <File name="MetricsFile" fileName="metrics_file.log" append="false" immediateFlush="true">
+            <PatternLayout pattern="[%logger{0}] [%d{HH:mm:ss,SSS}] %msg%n"/>
+        </File>
+    </Appenders>
+
+    <Loggers>
+        <Root level="debug">
+            <AppenderRef ref="Console" level="info"/>
+            <!--AppenderRef ref="Console" level="debug"/>
+            <AppenderRef ref="MyFile" level="debug"/-->
+        </Root>
+
+        <!--Logger level="info" name="io.netty"/>
+        <Logger level="info" name="network"/>
+        <Logger level="info" name="channel"/>
+        <Logger level="info" name="babel"/-->
+
+        <Logger name="babel.metrics" level="debug">
+            <AppenderRef ref="MetricsFile" level="all"/>
+        </Logger>
+
+        <Logger name="timer" level="debug">
+            <AppenderRef ref="MyFile" level="all"/>
+        </Logger>
+    </Loggers>
+</Configuration>
