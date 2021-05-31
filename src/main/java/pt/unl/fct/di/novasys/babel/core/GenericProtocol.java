@@ -672,7 +672,7 @@ public abstract class GenericProtocol {
                                 + protoId + " (" + protoName + ")");
                 }
             } catch (Exception e) {
-                logger.error("Protocol {}({}) crashed with unhandled exception: {}", this.getProtoId(), this.getProtoName(), e.toString());
+                logger.error("Protocol " + getProtoName() +" ("+ getProtoId() +") crashed with unhandled exception " + e, e);
                 e.printStackTrace();
             }
         }
