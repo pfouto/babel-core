@@ -671,7 +671,8 @@ public abstract class GenericProtocol {
                         throw new AssertionError("Unexpected event received by babel. protocol "
                                 + protoId + " (" + protoName + ")");
                 }
-            } catch (InterruptedException e) {
+            } catch (Exception e) {
+                logger.error("Protocol {}({}) crashed with unhandled exception: {}", this.getProtoId(), this.getProtoName(), e.getLocalizedMessage());
                 e.printStackTrace();
             }
         }
