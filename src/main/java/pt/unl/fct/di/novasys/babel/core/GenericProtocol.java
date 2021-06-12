@@ -33,24 +33,19 @@ public abstract class GenericProtocol {
     private static final Logger logger = LogManager.getLogger(GenericProtocol.class);
 
     //TODO split in GenericConnectionlessProtocol and GenericConnectionProtocol?
-
+    private static final Babel babel = Babel.getInstance();
     private final BlockingQueue<InternalEvent> queue;
     private final Thread executionThread;
     private final String protoName;
     private final short protoId;
-
-    private int defaultChannel;
-
     private final Map<Integer, ChannelHandlers> channels;
     private final Map<Short, TimerHandler<? extends ProtoTimer>> timerHandlers;
     private final Map<Short, RequestHandler<? extends ProtoRequest>> requestHandlers;
     private final Map<Short, ReplyHandler<? extends ProtoReply>> replyHandlers;
     private final Map<Short, NotificationHandler<? extends ProtoNotification>> notificationHandlers;
-
-    private static final Babel babel = Babel.getInstance();
-
     //Debug
     ProtocolMetrics metrics = new ProtocolMetrics();
+    private int defaultChannel;
     //protected ThreadMXBean tmx = ManagementFactory.getThreadMXBean();
 
     /**
@@ -134,13 +129,13 @@ public abstract class GenericProtocol {
         return metrics;
     }
 
-    protected long getMillisSinceBabelStart(){
+    protected long getMillisSinceBabelStart() {
         return babel.getMillisSinceStart();
     }
 
     /* ------------------ PROTOCOL REGISTERS -------------------------------------------------*/
 
-    protected void registerMetric(Metric m){
+    protected void registerMetric(Metric m) {
         MetricsManager.getInstance().registerMetric(m);
     }
 
@@ -341,7 +336,7 @@ public abstract class GenericProtocol {
      * Sends a message to a specified destination using the given channel.
      * May require the use of {@link #openConnection(Host)} beforehand.
      *
-     * @param channelId     the channel to send the message through
+     * @param channelId   the channel to send the message through
      * @param msg         the message to send
      * @param destination the ip/port to send the message to
      */
@@ -377,7 +372,7 @@ public abstract class GenericProtocol {
      * Sends a message to a specified destination, using a specific connection in a given channel.
      * May require the use of {@link #openConnection(Host)} beforehand.
      *
-     * @param channelId     the channel to send the message through
+     * @param channelId   the channel to send the message through
      * @param connection  the channel-specific connection to use.
      * @param msg         the message to send
      * @param destination the ip/port to send the message to
@@ -621,8 +616,9 @@ public abstract class GenericProtocol {
     /* ------------------ MAIN LOOP -------------------------------------------------*/
 
     private void mainLoop() {
-        while (true) {
-            try {
+        try {
+            while (true) {
+
                 InternalEvent pe = this.queue.take();
                 metrics.totalEventsCount++;
                 if (logger.isDebugEnabled())
@@ -671,10 +667,10 @@ public abstract class GenericProtocol {
                         throw new AssertionError("Unexpected event received by babel. protocol "
                                 + protoId + " (" + protoName + ")");
                 }
-            } catch (Exception e) {
-                logger.error("Protocol " + getProtoName() +" ("+ getProtoId() +") crashed with unhandled exception " + e, e);
-                e.printStackTrace();
             }
+        } catch (Exception e) {
+            logger.error("Protocol " + getProtoName() + " (" + getProtoId() + ") crashed with unhandled exception " + e, e);
+            e.printStackTrace();
         }
     }
 
