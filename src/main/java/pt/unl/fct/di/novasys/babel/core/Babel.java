@@ -1,5 +1,6 @@
 package pt.unl.fct.di.novasys.babel.core;
 
+import pt.unl.fct.di.novasys.babel.initializers.*;
 import pt.unl.fct.di.novasys.babel.internal.BabelMessage;
 import pt.unl.fct.di.novasys.babel.internal.IPCEvent;
 import pt.unl.fct.di.novasys.babel.internal.NotificationEvent;
@@ -10,11 +11,8 @@ import pt.unl.fct.di.novasys.babel.exceptions.ProtocolAlreadyExistsException;
 import pt.unl.fct.di.novasys.babel.metrics.MetricsManager;
 import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
 import pt.unl.fct.di.novasys.babel.generic.ProtoTimer;
-import pt.unl.fct.di.novasys.babel.initializers.ChannelInitializer;
-import pt.unl.fct.di.novasys.babel.initializers.SimpleClientChannelInitializer;
-import pt.unl.fct.di.novasys.babel.initializers.SimpleServerChannelInitializer;
-import pt.unl.fct.di.novasys.babel.initializers.TCPChannelInitializer;
 import pt.unl.fct.di.novasys.channel.IChannel;
+import pt.unl.fct.di.novasys.channel.accrual.AccrualChannel;
 import pt.unl.fct.di.novasys.channel.simpleclientserver.SimpleClientChannel;
 import pt.unl.fct.di.novasys.channel.simpleclientserver.SimpleServerChannel;
 import pt.unl.fct.di.novasys.channel.tcp.TCPChannel;
@@ -122,6 +120,7 @@ public class Babel {
         registerChannelInitializer(SimpleClientChannel.NAME, new SimpleClientChannelInitializer());
         registerChannelInitializer(SimpleServerChannel.NAME, new SimpleServerChannelInitializer());
         registerChannelInitializer(TCPChannel.NAME, new TCPChannelInitializer());
+        registerChannelInitializer(AccrualChannel.NAME, new AccrualChannelInitializer());
 
         //registerChannelInitializer("Ackos", new AckosChannelInitializer());
         //registerChannelInitializer(MultithreadedTCPChannel.NAME, new MultithreadedTCPChannelInitializer());
