@@ -7,6 +7,9 @@ import java.security.PublicKey;
 import java.security.Signature;
 import java.security.SignatureException;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
@@ -14,6 +17,10 @@ import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
 
 public abstract class SignedProtoMessage extends ProtoMessage {
 
+	private static final String SignatureAlgorithm = "SHA256withRSA";
+	
+	private static final Logger logger = LogManager.getLogger(SignedProtoMessage.class);
+	
 	protected byte[] serializedMessage;
 	protected byte[] signature;
 	
@@ -36,7 +43,7 @@ public abstract class SignedProtoMessage extends ProtoMessage {
 			}
 		}
 		
-		Signature sig = Signature.getInstance("SHA256WithRSA");
+		Signature sig = Signature.getInstance(SignedProtoMessage.SignatureAlgorithm);
 		sig.initSign(key);
 		sig.update(serializedMessage);
 		this.signature = sig.sign();
@@ -48,10 +55,12 @@ public abstract class SignedProtoMessage extends ProtoMessage {
 		if(this.signature == null || this.signature.length == 0)
 			throw new NoSignaturePresentException("This message does not contain a signature. Was this message received from the network?");
 		
-		Signature sig = Signature.getInstance("SHA256WithRSA");
+		Signature sig = Signature.getInstance(SignedProtoMessage.SignatureAlgorithm);
 		sig.initVerify(key);
 		sig.update(this.serializedMessage);
-		return sig.verify(this.signature);
+		boolean valid = sig.verify(this.signature);
+			logger.debug("Invalid signature on message: <" + this.getClass().getCanonicalName() + "> :: " + this.toString());
+		return valid;
 	}
 	
 	public abstract SignedMessageSerializer<? extends SignedProtoMessage> getSerializer();
