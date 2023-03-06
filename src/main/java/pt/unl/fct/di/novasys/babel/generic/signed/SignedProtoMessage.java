@@ -39,7 +39,7 @@ public abstract class SignedProtoMessage extends ProtoMessage {
 			} else {
 				ByteBuf b = Unpooled.buffer();
 				serializer.serializeBody(this, b);
-				this.serializedMessage = ByteBufUtil.getBytes(b);
+				this.serializedMessage = ByteBufUtil.getBytes(b.slice());
 			}
 		}
 		
