@@ -15,7 +15,7 @@ public abstract class SignedMessageSerializer<T extends SignedProtoMessage> impl
         	ByteBuf serial = Unpooled.buffer();
         	serial.writeShort(msg.getId());
         	this.serializeBody(msg, serial);
-        	msg.serializedMessage = ByteBufUtil.getBytes(serial);
+        	msg.serializedMessage = ByteBufUtil.getBytes(serial.slice());
         }
     	
     	out.writeInt(msg.serializedMessage.length);

@@ -38,6 +38,7 @@ public abstract class SignedProtoMessage extends ProtoMessage {
 						"\nVerify that the serializer exists and is returned by the method getSerializer()");
 			} else {
 				ByteBuf b = Unpooled.buffer();
+				b.writeShort(this.getId());
 				serializer.serializeBody(this, b);
 				this.serializedMessage = ByteBufUtil.getBytes(b.slice());
 			}
