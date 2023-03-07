@@ -20,7 +20,7 @@ public abstract class SignedMessageSerializer<T extends SignedProtoMessage> impl
     	
     	out.writeInt(msg.serializedMessage.length);
         out.writeBytes(msg.serializedMessage);
-        if(msg.signature != null || msg.signature.length == 0)
+        if(msg.signature == null || msg.signature.length == 0)
         	out.writeShort(0);
         else {
         	out.writeShort(msg.signature.length);
@@ -49,8 +49,8 @@ public abstract class SignedMessageSerializer<T extends SignedProtoMessage> impl
 		return msg;
 	}
 	
-	public abstract void serializeBody(SignedProtoMessage signedProtoMessage, ByteBuf out);
+	public abstract void serializeBody(T signedProtoMessage, ByteBuf out) throws IOException;
 	
-	public abstract T deserializeBody(ByteBuf in);
+	public abstract T deserializeBody(ByteBuf in) throws IOException;
 	
 }

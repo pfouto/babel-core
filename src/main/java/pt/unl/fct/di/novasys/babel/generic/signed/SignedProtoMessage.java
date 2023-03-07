@@ -1,5 +1,6 @@
 package pt.unl.fct.di.novasys.babel.generic.signed;
 
+import java.io.IOException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
@@ -32,14 +33,18 @@ public abstract class SignedProtoMessage extends ProtoMessage {
 	
 	public final void signMessage(PrivateKey key) throws NoSuchAlgorithmException, InvalidKeyException, SignatureException, InvalidSerializerException {
 		if(this.serializedMessage == null) {
-			SignedMessageSerializer<? extends SignedProtoMessage> serializer = this.getSerializer();
+			SignedMessageSerializer<SignedProtoMessage> serializer = (SignedMessageSerializer<SignedProtoMessage>) this.getSerializer();
 			if(serializer == null) {
 				throw new InvalidSerializerException("No Serializer available for type: " + this.getClass().getCanonicalName() +
 						"\nVerify that the serializer exists and is returned by the method getSerializer()");
 			} else {
 				ByteBuf b = Unpooled.buffer();
 				b.writeShort(this.getId());
-				serializer.serializeBody(this, b);
+				try {
+					serializer.serializeBody(this, b);
+				} catch (IOException e) {
+					throw new RuntimeException(e);
+				}
 				this.serializedMessage = ByteBufUtil.getBytes(b.slice());
 			}
 		}
