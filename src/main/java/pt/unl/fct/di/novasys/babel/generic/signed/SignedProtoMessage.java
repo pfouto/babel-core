@@ -16,6 +16,13 @@ import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import pt.unl.fct.di.novasys.babel.generic.ProtoMessage;
 
+/**
+ * <p>Abstract Message class to be extended by protocol-specific messages, similar to ProtoMessage.
+ * Used just like ProtoMessage, but requires implementing the getSerializer() method.
+ *
+ * <p>This class also provides methods to sign and check the signature of the message, by calling the signMessage() and
+ * checkSignature() methods.
+ */
 public abstract class SignedProtoMessage extends ProtoMessage {
 
 	private static final String SignatureAlgorithm = "SHA256withRSA";

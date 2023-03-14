@@ -7,6 +7,12 @@ import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 import pt.unl.fct.di.novasys.network.ISerializer;
 
+/**
+ * This serializer is used to serialize/deserialize SignedProtoMessage objects.
+ * Defines a serialization format just like ISerializer.
+ *
+ * @param <T> The type of SignedProtoMessage to be serialized/deserialized
+ */
 public abstract class SignedMessageSerializer<T extends SignedProtoMessage> implements ISerializer<T> {
 
 	@Override
