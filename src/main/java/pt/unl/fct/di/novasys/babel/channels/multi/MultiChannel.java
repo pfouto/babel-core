@@ -172,7 +172,7 @@ public class MultiChannel extends SingleThreadedBiChannel<BabelMessage, BabelMes
     }
 
     @Override
-    protected void onOpenConnection(Host host) {
+    protected void onOpenConnection(Host host, int connection) {
         throw new NotImplementedException("Pls fix me");
     }
 

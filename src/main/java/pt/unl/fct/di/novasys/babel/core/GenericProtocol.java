@@ -438,7 +438,7 @@ public abstract class GenericProtocol {
      * @param channelId the channel to create the connection in
      */
     protected final void openConnection(Host peer, int channelId) {
-        babel.openConnection(channelId, peer);
+        babel.openConnection(channelId, peer, protoId);
     }
 
     /**

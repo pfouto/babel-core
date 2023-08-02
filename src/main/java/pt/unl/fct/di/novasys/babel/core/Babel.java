@@ -261,12 +261,12 @@ public class Babel {
      * Opens a connection to a peer in the given channel.
      * Called by {@link GenericProtocol}. Do not evoke directly.
      */
-    void openConnection(int channelId, Host target) {
+    void openConnection(int channelId, Host target, int connection) {
         Triple<IChannel<BabelMessage>, ChannelToProtoForwarder, BabelMessageSerializer> channelEntry =
                 channelMap.get(channelId);
         if (channelEntry == null)
             throw new AssertionError("Opening connection in non-existing channelId " + channelId);
-        channelEntry.getLeft().openConnection(target);
+        channelEntry.getLeft().openConnection(target, connection);
     }
 
     /**
