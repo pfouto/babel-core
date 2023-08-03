@@ -15,6 +15,7 @@ import pt.unl.fct.di.novasys.channel.IChannel;
 import pt.unl.fct.di.novasys.channel.accrual.AccrualChannel;
 import pt.unl.fct.di.novasys.channel.simpleclientserver.SimpleClientChannel;
 import pt.unl.fct.di.novasys.channel.simpleclientserver.SimpleServerChannel;
+import pt.unl.fct.di.novasys.channel.tcp.SharedTCPChannel;
 import pt.unl.fct.di.novasys.channel.tcp.TCPChannel;
 import pt.unl.fct.di.novasys.network.ISerializer;
 import pt.unl.fct.di.novasys.network.data.Host;
@@ -121,6 +122,7 @@ public class Babel {
         registerChannelInitializer(SimpleServerChannel.NAME, new SimpleServerChannelInitializer());
         registerChannelInitializer(TCPChannel.NAME, new TCPChannelInitializer());
         registerChannelInitializer(AccrualChannel.NAME, new AccrualChannelInitializer());
+        registerChannelInitializer(SharedTCPChannel.NAME, new SharedTCPChannelInitializer());
 
         //registerChannelInitializer("Ackos", new AckosChannelInitializer());
         //registerChannelInitializer(MultithreadedTCPChannel.NAME, new MultithreadedTCPChannelInitializer());
